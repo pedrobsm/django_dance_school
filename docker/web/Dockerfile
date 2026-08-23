@@ -15,6 +15,10 @@ RUN pip3 install --upgrade pip
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r requirements_custom.txt
 
+# Copy the custom apps folder into the image (needed since we build via CI,
+# not via the bind-mount volume the official setup expects)
+COPY ./custom/ /data/web/custom/
+
 # Add custom apps to PYTHONPATH
 ENV PYTHONPATH "$PYTHONPATH:/data/web/custom"
 
