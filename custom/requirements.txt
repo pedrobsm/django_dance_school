@@ -1,1 +1,2 @@
 django-addanother
+django-cms<3.10
