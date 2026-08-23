@@ -1,3 +1,4 @@
 django-addanother
 django-cms<3.10
 django-admin-rangefilter<0.7
+django-multiselectfield==0.1.12
