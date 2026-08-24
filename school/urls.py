@@ -24,10 +24,12 @@ urlpatterns = [
     # staff, por isso fica sem prefixo de idioma.
     url(r'^admin/', admin.site.urls),
 
-    # Vista set_language do Django, usada pelo seletor de idioma no navbar
-    # (ver custom/hopintheme/templates/cms/navbar.html). Fica de propósito
-    # FORA de i18n_patterns — é a vista que *muda* de idioma, não pode ela
-    # própria estar presa a um.
+    # Vistas de i18n do Django (set_language). O seletor de idioma do navbar
+    # não a usa — troca de idioma por link GET, porque o django-cms serve
+    # páginas a partir da cache e um POST com CSRF rebentava com 403
+    # intermitente (ver custom/hopintheme/templatetags/hopin_i18n.py). Fica
+    # disponível na mesma, e de propósito FORA de i18n_patterns: é a vista
+    # que *muda* de idioma, não pode estar presa a um.
     url(r'^i18n/', include('django.conf.urls.i18n')),
 ]
 
