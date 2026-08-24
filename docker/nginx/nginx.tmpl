@@ -207,7 +207,18 @@ server {
 	listen [::]:80 {{ $default_server }};
 	{{ end }}
 	access_log /var/log/nginx/access.log vhost;
-	return 301 https://$host$request_uri;
+
+	location /.well-known/acme-challenge/ {
+		auth_basic off;
+		allow all;
+		root /usr/share/nginx/html;
+		try_files $uri =404;
+		break;
+	}
+
+	location / {
+		return 301 https://$host$request_uri;
+	}
 }
 {{ end }}
 
@@ -333,6 +344,14 @@ server {
 	{{ else if (exists "/etc/nginx/vhost.d/default") }}
 	include /etc/nginx/vhost.d/default;
 	{{ end }}
+
+	location /.well-known/acme-challenge/ {
+		auth_basic off;
+		allow all;
+		root /usr/share/nginx/html;
+		try_files $uri =404;
+		break;
+	}
 
 	location / {
 		{{ if eq $proto "uwsgi" }}
