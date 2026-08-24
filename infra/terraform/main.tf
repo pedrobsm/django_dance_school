@@ -4,6 +4,14 @@ locals {
     environment = var.environment
     managed_by  = "terraform"
   }
+
+  # Se não deres um domínio próprio, usa um hostname sslip.io derivado do IP
+  # público — resolve automaticamente para esse IP sem configurar DNS
+  # nenhum, e o Let's Encrypt emite certificados normais para ele (não está
+  # na Public Suffix List, mas tem uma quota partilhada elevada concedida
+  # pela Let's Encrypt especificamente para este uso). Suficiente para a
+  # PoC; troca por um domínio real quando/se a HOP IN decidir avançar.
+  effective_domain = var.domain_name != "" ? var.domain_name : "${replace(azurerm_public_ip.this.ip_address, ".", "-")}.sslip.io"
 }
 
 resource "azurerm_resource_group" "this" {
@@ -162,7 +170,7 @@ resource "azurerm_linux_virtual_machine" "this" {
     ghcr_image       = var.ghcr_image
     ghcr_username    = var.ghcr_username
     ghcr_token       = var.ghcr_token
-    domain_name      = var.domain_name
+    domain_name      = local.effective_domain
     acme_email       = var.acme_email
   }))
 

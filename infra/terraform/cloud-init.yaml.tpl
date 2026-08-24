@@ -38,8 +38,15 @@ write_files:
         do docker-compose.yml — postgres, staticfiles, media, private_media,
         certs — em vez de volumes Docker anónimos, para facilitar backup.)
       - Imagem da app publicada por CI: ${ghcr_image}
-      - Domínio alvo: ${domain_name}
-      - Email para Let's Encrypt: ${acme_email}
+      - Domínio alvo (VIRTUAL_HOST / LETSENCRYPT_HOST em env.web): ${domain_name}
+        (hostname sslip.io automático se não foi dado domain_name — resolve
+        para este IP sem DNS nenhum configurado; troca por domínio real
+        mais tarde se necessário)
+      - Email para Let's Encrypt (LETSENCRYPT_EMAIL em env.web): ${acme_email}
+      - Recomendação: testa primeiro com LETSENCRYPT_TEST=true em env.web
+        (certificado de staging, não fica válido no browser mas não gasta
+        quota real) para confirmar que o challenge HTTP-01 chega até à VM
+        antes de pedires o certificado de produção definitivo.
       - Firewall: ufw ativo, portas 22 (restrita), 80, 443 abertas.
       - Ver /opt/hopin/app/CLAUDE.md e /opt/hopin/app/docker/setup_stack.sh
         para o fluxo de arranque do stack (docker swarm init, secrets,

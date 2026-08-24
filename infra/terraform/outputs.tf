@@ -19,3 +19,12 @@ output "ssh_command" {
 output "data_disk_mount" {
   value = "/data (dispositivo /dev/disk/azure/scsi1/lun0-part1)"
 }
+
+output "site_domain" {
+  description = <<-EOT
+    Hostname a usar em VIRTUAL_HOST/LETSENCRYPT_HOST no env.web da VM. Se
+    não deste domain_name, é o hostname sslip.io gerado automaticamente a
+    partir do IP público.
+  EOT
+  value       = local.effective_domain
+}

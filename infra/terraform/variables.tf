@@ -70,17 +70,22 @@ variable "data_disk_size_gb" {
 
 variable "domain_name" {
   description = <<-EOT
-    Domínio final do site (ex: hopin.pt ou app.hopin.pt). Deixa em branco se
-    ainda não tiveres o domínio decidido — podes configurar depois via SSH.
-    Depois do `apply`, cria um registo DNS A a apontar para o output
-    `public_ip_address`.
+    Domínio final do site (ex: hopin.pt ou app.hopin.pt). Deixa em branco
+    para usar automaticamente um hostname sslip.io derivado do IP público da
+    VM (ex: 20-50-60-70.sslip.io) — não precisa de DNS nenhum configurado e o
+    Let's Encrypt emite certificado normal para ele. Suficiente para a PoC;
+    troca por um domínio real mais tarde se avançar para produção.
   EOT
   type        = string
   default     = ""
 }
 
 variable "acme_email" {
-  description = "Email usado para os certificados Let's Encrypt (LETSENCRYPT_EMAIL)."
+  description = <<-EOT
+    Email usado para os certificados Let's Encrypt (LETSENCRYPT_EMAIL).
+    Obrigatório para o Let's Encrypt funcionar, mesmo usando o hostname
+    sslip.io automático — usa um email real teu ou da HOP IN.
+  EOT
   type        = string
   default     = ""
 }

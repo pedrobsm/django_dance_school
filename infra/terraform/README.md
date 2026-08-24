@@ -62,8 +62,11 @@ cp terraform.tfvars.example terraform.tfvars
 Edita `terraform.tfvars`:
 - `allowed_ssh_cidrs`: o teu IP público atual em formato `/32`. Descobre com
   `curl ifconfig.me` (ou pesquisa "qual é o meu IP").
-- `domain_name` / `acme_email`: preenche se já tiveres domínio decidido,
-  senão deixa vazio e trata disso depois por SSH.
+- `domain_name`: deixa vazio para a PoC. O Terraform usa automaticamente um
+  hostname `sslip.io` derivado do IP público (ex: `20-50-60-70.sslip.io`) —
+  ver caixa "Sobre o domínio/HTTPS" abaixo.
+- `acme_email`: **obrigatório** mesmo sem domínio próprio — o Let's Encrypt
+  exige um email de contacto para emitir certificados.
 
 Se o package `ghcr.io/pedrobsm/danceschool-web` for privado, define também
 (fora do ficheiro, por variável de ambiente, para não ficar em disco):
@@ -97,12 +100,28 @@ ligar. Para acompanhar o progresso já ligado por SSH:
 cloud-init status --wait
 ```
 
-### 6. Apontar o domínio
+### 6. Domínio / HTTPS
 
-Cria um registo DNS **A** do teu domínio (ou subdomínio) para o
-`public_ip_address` do output. Só depois disso o Let's Encrypt (via
-`letsencrypt-nginx-proxy-companion` já presente no `docker-compose.yml`)
-consegue emitir o certificado.
+Se deixaste `domain_name` vazio, o output `site_domain` já é um hostname
+funcional (`terraform output site_domain`) — não precisas de fazer nada em
+DNS, o `letsencrypt-nginx-proxy-companion` (já no `docker-compose.yml`)
+consegue emitir o certificado diretamente contra esse hostname.
+
+Se preenchesses `domain_name` com um domínio teu, cria antes um registo DNS
+**A** a apontar para `public_ip_address`.
+
+> **Sobre o domínio/HTTPS na PoC**: HTTPS em si não é opcional — sem ele,
+> browsers em mobile bloqueiam acesso à câmara (upload de fotos) e cookies
+> seguros, o que a PoC precisa. Mas não precisas de comprar um domínio: o
+> `sslip.io` resolve automaticamente `<ip-com-hifens>.sslip.io` para o IP da
+> VM, e o Let's Encrypt emite certificados válidos normais para ele. A única
+> ressalva honesta: o `sslip.io` não está na Public Suffix List, por isso
+> todos os utilizadores do serviço no mundo partilham a mesma quota do Let's
+> Encrypt (elevada — 50 000 certificados/semana — mas não garantida, já
+> houve episódios de esgotamento por tráfego de bots). Para uma VM só, o
+> risco é baixo. Testa primeiro com `LETSENCRYPT_TEST=true` em `env.web`
+> (emite um certificado de staging, não gasta a quota real) antes de pedir o
+> certificado de produção definitivo.
 
 ### 7. Arrancar a aplicação
 
