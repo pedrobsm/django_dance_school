@@ -171,6 +171,49 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
    tarefa (ou volta a `docker stack deploy`, que também funciona se algum
    valor do spec do serviço mudou, como env vars).
 
+10. **`TIME_ZONE` no `env.default` estava em `America/New_York`** (default
+    do template upstream, nunca tinha sido alterado). Todos os horários de
+    turmas/workshops são inseridos em hora de Portugal — com o fuso errado,
+    apareceriam desfasados várias horas. **Corrigido**: `Europe/Lisbon`.
+
+11. **`StaffMemberListPlugin` (página "Professores") não mostrava
+    ninguém** — o campo `statusChoices` (`django-multiselectfield`, mesmo
+    pacote com histórico de problemas, ver item 3) tem um valor por omissão
+    não-vazio (`['R','A','G']`). Quando não-vazio, `render()` do plugin faz
+    `StaffMember.objects.filter(instructor__status__in=instance.statusChoices)`
+    — mas o `MSFList` devolvido pelo `MultiSelectField` faz o Django ORM
+    gerar um `EmptyResultSet` neste `__in` (bug de compatibilidade, não do
+    nosso código). Quando o campo fica vazio (`falsy`), o plugin usa antes
+    `.exclude(instructor__status__in=[lista Python normal])`, que funciona
+    bem. **Fix**: passar sempre `statusChoices=[]` explicitamente ao criar
+    este plugin via `cms.api.add_plugin` (feito em
+    `create_hopin_demo_data.py`). Se voltares a ver a página de professores
+    vazia apesar de existirem `Instructor` com `status=roster`, é este bug.
+
+## Dados de demonstração
+
+- `python3 manage.py create_demo_data` — dados genéricos (Maria Silva,
+  João Santos, etc.), ver secção acima.
+- `python3 manage.py create_hopin_demo_data` — dados aproximados do plano
+  pedagógico real da HOP IN 2025/26 e dos workshops de Setembro 2026
+  (fonte: spreadsheet "Plano Pedagógico" e pasta de workshops no Google
+  Drive da associação — não copiados para o repo, só lidos). Cria tipos de
+  dança/níveis, instrutores (com os nomes reais mencionados no plano),
+  preços (mensalidade par/solo, workshop), 7 turmas regulares e os 5
+  workshops "HOP INto..." de Setembro com datas/preços/professores reais e
+  descrições retiradas do documento de workshops. Cria também 3 páginas
+  CMS: "HOP IN" (homepage, com o manifesto de marca resumido, definida
+  como homepage), "Professores" e "Turmas" (calendário público). Ambos os
+  comandos são complementares e idempotentes (podes correr os dois, e
+  corrê-los outra vez não duplica dados).
+  Detalhes que ficaram por resolver/simplificados de propósito (PoC): o
+  `setupschool` (nome/localização/timezone do negócio) continua por
+  correr; a rotação de professores por módulo mensal não está modelada
+  (fica só o professor "principal"); datas exatas do arranque da época
+  regular 2025/26 não estavam decididas no plano, por isso usámos a
+  próxima 3ª/4ª/6ª-feira a partir da data em que o comando corre, em vez
+  de Outubro fixo.
+
 ## Acesso a contexto adicional
 
 - **Google Drive da HOP IN**: usar o MCP do Google Drive (autenticar se

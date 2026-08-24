@@ -398,6 +398,12 @@ class Command(BaseCommand):
             add_plugin(
                 content_placeholder, 'StaffMemberListPlugin', language,
                 template='core/staff_list.html',
+                # Explicitly empty: the field's non-empty MultiSelectField default
+                # triggers a django-multiselectfield bug where `instructor__status__in`
+                # against the stored MSFList produces an EmptyResultSet (0 instructors
+                # shown), instead of the plain-list .exclude() branch that runs when
+                # this field is falsy. See CLAUDE.md pitfall list.
+                statusChoices=[],
             )
             publish_page(instructor_page, this_user, language)
             self.stdout.write('Pagina de professores criada.')
