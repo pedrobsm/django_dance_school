@@ -101,6 +101,42 @@ HOME_EN_BODY = (
 )
 HOME_EN_CAPTION = '<p class="lead text-white text-center">Learn. Experiment. Dance.</p>'
 
+# Versao portuguesa do mesmo manifesto.
+#
+# ATENCAO — sobreposicao conhecida: o create_hopin_demo_data tambem escreve
+# este manifesto (numa variante sem acentos). Os dois comandos escrevem no
+# mesmo sitio, por isso corre sempre `create_hopin_demo_data` PRIMEIRO e
+# `translate_cms_pages` DEPOIS; a ultima palavra fica com esta versao, que e
+# a acentuada. Vale a pena unificar os dois textos num modulo partilhado
+# quando o conteudo real da HOP IN estabilizar.
+HOME_PT_BODY = (
+    '<p><strong>Mais do que aprender a dançar.</strong></p>'
+    '<p>A HOP IN é uma comunidade de swing e blues no Porto. Queremos '
+    'construir mais do que um lugar para aprender a dançar: um lugar onde '
+    'se descobre o swing, se cresce ao próprio ritmo, se fazem amizades e '
+    'se encontra uma comunidade da qual apetece fazer parte.</p>'
+    '<h2>Para quem está a começar... e para quem quer ir mais longe</h2>'
+    '<p>A HOP IN não é só a porta de entrada para quem nunca dançou — é '
+    'também espaço para quem já dança, quer aprofundar, experimentar coisas '
+    'novas e descobrir até onde pode levar a sua dança. <em>Descobrir — '
+    'Aprender — Experimentar — Evoluir — Participar</em> — cada pessoa entra '
+    'num ponto diferente e escolhe o seu próximo passo.</p>'
+    '<h2>Escola + Eventos</h2>'
+    '<p>A escola cria oportunidades para <strong>aprender e evoluir</strong> '
+    '— aulas, workshops, treino, musicalidade. A associação cria '
+    'oportunidades para <strong>participar</strong> — sociais, jams, '
+    'festivais, voluntariado. É nesta combinação que se encontra a HOP '
+    'IN.</p>'
+    '<p class="text-center"><strong>Warm &middot; Welcoming &middot; '
+    'Playful &middot; Friendly &middot; Curious</strong></p>'
+)
+HOME_PT_CAPTION = '<p class="lead text-white text-center">Aprende. Experimenta. Dança.</p>'
+
+HOME_CONTENT = {
+    SRC_LANG: {'splash_caption': HOME_EN_CAPTION, 'content': HOME_EN_BODY},
+    DST_LANG: {'splash_caption': HOME_PT_CAPTION, 'content': HOME_PT_BODY},
+}
+
 
 class Command(BaseCommand):
     help = 'Cria/atualiza as traducoes PT das paginas do django-cms.'
@@ -159,29 +195,35 @@ class Command(BaseCommand):
                 self.stdout.write('PT atualizado: %s' % pt_title)
 
             # --- 3. Copiar conteudo dos placeholders EN -> PT ---
-            for placeholder in page.placeholders.all():
-                if placeholder.get_plugins_list(language=DST_LANG):
-                    continue  # ja tem conteudo PT, nao sobrepomos
-                src_plugins = placeholder.get_plugins_list(language=SRC_LANG)
-                if not src_plugins:
-                    continue
-                copy_plugins_to(src_plugins, placeholder, to_language=DST_LANG)
-                copied += 1
-
-            # --- 4. Homepage: por a versao inglesa no slot EN ---
-            if page.is_home:
-                for slot, body in (
-                    ('splash_caption', HOME_EN_CAPTION),
-                    ('content', HOME_EN_BODY),
-                ):
-                    placeholder = page.placeholders.filter(slot=slot).first()
-                    if not placeholder:
+            # A homepage fica de fora: o conteudo dela e escrito
+            # explicitamente no passo 4. Copiar aqui so poria no lado PT o
+            # que estivesse no lado EN — que, na homepage criada pelo
+            # setupschool, e o texto de exemplo "Welcome to HOP IN".
+            if not page.is_home:
+                for placeholder in page.placeholders.all():
+                    if placeholder.get_plugins_list(language=DST_LANG):
+                        continue  # ja tem conteudo PT, nao sobrepomos
+                    src_plugins = placeholder.get_plugins_list(language=SRC_LANG)
+                    if not src_plugins:
                         continue
-                    CMSPlugin.objects.filter(
-                        placeholder=placeholder, language=SRC_LANG
-                    ).delete()
-                    add_plugin(placeholder, 'TextPlugin', SRC_LANG, body=body)
-                self.stdout.write('Homepage: conteudo EN substituido por versao inglesa.')
+                    copy_plugins_to(src_plugins, placeholder, to_language=DST_LANG)
+                    copied += 1
+
+            # --- 4. Homepage: escrever o manifesto nos DOIS idiomas ---
+            # Deterministico de proposito (apaga e volta a escrever), para
+            # convergir sempre no mesmo resultado independentemente do que
+            # la estivesse antes.
+            if page.is_home:
+                for lang, slots in HOME_CONTENT.items():
+                    for slot, body in slots.items():
+                        placeholder = page.placeholders.filter(slot=slot).first()
+                        if not placeholder:
+                            continue
+                        CMSPlugin.objects.filter(
+                            placeholder=placeholder, language=lang
+                        ).delete()
+                        add_plugin(placeholder, 'TextPlugin', lang, body=body)
+                self.stdout.write('Homepage: manifesto escrito em PT e EN.')
 
             # --- 5. Publicar ambos ---
             for lang in (SRC_LANG, DST_LANG):
