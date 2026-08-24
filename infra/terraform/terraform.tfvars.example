@@ -1,0 +1,12 @@
+# Copia este ficheiro para terraform.tfvars e ajusta os valores.
+# NUNCA commites terraform.tfvars (já está no .gitignore).
+
+allowed_ssh_cidrs = ["203.0.113.10/32"] # o teu IP público atual, com /32
+
+domain_name = "" # ex: "hopin.pt" — deixa vazio se ainda não decidido
+acme_email  = "" # ex: "admin@hopin.pt" — necessário para Let's Encrypt
+
+# Opcional: só necessário se ghcr.io/pedrobsm/danceschool-web for um package privado.
+# Preenche via variável de ambiente em vez deste ficheiro:
+#   export TF_VAR_ghcr_username=pedrobsm
+#   export TF_VAR_ghcr_token=ghp_xxx   (PAT com scope read:packages)

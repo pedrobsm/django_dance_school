@@ -19,14 +19,28 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
 
 ## Estado da infraestrutura
 
-- **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC). Ainda por provisionar/finalizar nesta sessão.
+- **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC).
 - Precisa de **domínio + HTTPS reais** (não só IP:porta) — é uma condição
   para a PoC, porque vamos ter utilizadores de teste reais, incluindo em
   mobile, e HTTPS é necessário para vários comportamentos de browser
   (cookies seguros, upload de fotos via câmara, etc.)
-- Acesso à Azure disponível via **Azure MCP** (ferramentas MCP já
-  configuradas nesta sessão) — usa-as para provisionar/gerir recursos em vez
-  de pedir credenciais ou assumir CLI local não autenticado.
+- **Azure MCP não tem credenciais válidas nesta máquina** (o PC do Pedro tem
+  restrições administrativas que impedem `az login`/Azure CLI local — sem
+  Azure CLI instalada, e todos os métodos de credencial do
+  `ChainedTokenCredential` falham). O GitHub MCP, esse, está autenticado e
+  com escrita (`pedrobsm`).
+- **Por isso, o provisionamento é feito via Terraform a partir de outro PC**
+  (onde o Pedro consegue autenticar-se no Azure). Ficheiros em
+  `infra/terraform/` — ver `infra/terraform/README.md` para o passo-a-passo
+  completo. Cria uma única VM Ubuntu 22.04 (Standard_B2s por omissão) com
+  tudo integrado (web+huey+postgres+redis+nginx via Docker/Swarm), disco de
+  dados separado em `/data`, e acesso SSH por chave (sem password auth,
+  restrito por IP via `allowed_ssh_cidrs`).
+- O Terraform provisiona a **infraestrutura** (VM, rede, firewall, Docker
+  instalado, repo clonado) mas **não** corre `docker/setup_stack.sh`
+  (interativo de propósito — swarm init, secrets, migrações). Isso faz-se
+  manualmente por SSH depois do `terraform apply`. Notas de contexto ficam
+  em `/opt/hopin/INFRA_NOTES.md` dentro da própria VM.
 - Stack: Docker Compose (web + huey + postgres + redis, mais nginx/caddy a
   acrescentar para TLS e para servir `/media/`).
 
@@ -91,11 +105,10 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
    das primeiras coisas a tratar ao migrar para Azure com domínio, através
    de um Nginx/Caddy à frente do Gunicorn.
 
-7. **GitHub write access**: a integração usada no chat do Claude.ai só tinha
-   leitura neste repositório (todas as tentativas de `create_or_update_file`
-   deram 403), por isso todas as alterações até agora foram feitas
-   manualmente pelo Pedro. **O Claude Code, autenticado via `gh auth
-   login`, deve ter escrita real** — confirmar isto logo no arranque.
+7. **GitHub write access**: confirmado — o Claude Code (GitHub MCP,
+   autenticado como `pedrobsm`) tem escrita real neste repositório. A
+   integração usada no chat do Claude.ai é que só tinha leitura (403 em
+   `create_or_update_file`); isso não se aplica aqui.
 
 ## Acesso a contexto adicional
 
