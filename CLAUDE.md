@@ -195,6 +195,26 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     `create_hopin_demo_data.py`). Se voltares a ver a página de professores
     vazia apesar de existirem `Instructor` com `status=roster`, é este bug.
 
+    **Nova manifestação (2026-08-25)**: o Pedro editou a página "Instructors"
+    (versão EN) no admin e marcou manualmente **todos** os checkboxes de
+    "Limit to Instructors with Status" (incluindo "Publicly Hidden"). Isso
+    torna `statusChoices` não-vazio, mas desta vez sem crash — o valor lido
+    via `plugin.get_plugin_instance()[0].statusChoices` vinha como os
+    **rótulos legíveis** ("Regular Instructor", "Assistant Instructor", ...)
+    em vez das chaves reais ("R", "A", ...), apesar de a leitura direta via
+    `StaffMemberListPluginModel.objects.get(pk=X).statusChoices` mostrar as
+    chaves corretas — mesmo pacote (`django-multiselectfield==0.1.12`),
+    outra faceta do mesmo bug de serialização. O filtro
+    `instructor__status__in=[rótulos]` não bate certo com nenhum valor real
+    da coluna (`R`/`A`/...), logo devolve 0 resultados — página em branco,
+    sem erro no servidor. **Fix aplicado**: repor `statusChoices=[]` nas
+    instâncias afetadas via `manage.py shell` + `cache.clear()` (o plugin
+    tem `cache=True`). **Regra prática para quem editar esta página no
+    CMS**: nunca marcar checkboxes em "Limit to Instructors with Status" —
+    deixa tudo por marcar (mostra todos exceto hidden/retired,
+    automaticamente, via o `else` do `render()`). Marcar qualquer
+    combinação está confirmado como não-fiável.
+
 12. **`create_hopin_demo_data` criava uma segunda homepage** — a primeira
     versão do comando criava sempre uma página nova "HOP IN" e chamava
     `set_as_homepage()`. Quando o `setupschool` foi corrido depois (na VM,
@@ -272,6 +292,27 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     autorrecupera; se não recuperar sozinho, tenta outro
     `docker service update --force` (a colisão é por timing, raramente
     repete duas vezes seguidas).
+
+20. **Duplicação de plugin na página publicada, descoberta ao corrigir o
+    bug do item 11** — a página "Instructors" tinha DUAS `CMSPlugin`
+    instâncias de `StaffMemberListPlugin` na mesma placeholder `content` da
+    página **publicada** (`Page.pk=4`, `publisher_is_draft=False`), enquanto
+    o **rascunho** (`Page.pk=3`) só tinha uma. Resultado depois de corrigir
+    o bug de `statusChoices`: cada instrutor aparecia duas vezes na página
+    publicada. Causa provável: um `publish` anterior que não substituiu
+    corretamente os plugins antigos da versão publicada (talvez do
+    incidente da homepage duplicada, item 12). **Fix**: apagado o plugin a
+    mais diretamente via `CMSPlugin.objects.get(pk=...).delete()` +
+    `cache.clear()`, em vez de confiar no botão "Publish page changes" —
+    **clicar nesse botão via automação de browser (Claude Browser MCP) não
+    funcionou nesta sessão** (nem o clique no link, nem navegar
+    diretamente para o URL `/admin/cms/page/<id>/<lang>/publish/` via GET
+    — a contagem de plugins na página publicada não mudou). Não percebi se
+    é um endpoint que exige POST/CSRF que a navegação simples não fornece,
+    ou outra causa. Se precisares de publicar uma página via automação
+    outra vez, confirma sempre o resultado direto na base de dados (como
+    fiz aqui) em vez de assumir que o clique funcionou — ou pede ao Pedro
+    para clicar mesmo no browser dele.
 
 ## Teste vanilla (Hetzner) — comparação sem alterações HOP IN
 
