@@ -151,4 +151,43 @@ footer.bg-dark a:hover {
    clearfix clássico — força a div a estender-se até abaixo da foto. */
 .bio {
   overflow: auto;
+  padding: 1.5rem 0;
+}
+
+/* Polimento visual da lista de instrutores (core/staff_list.html) — o
+   Pedro pediu para manter o formato de lista (não mudar para grid), só
+   com mais respiração e melhor tipografia. Não tocamos no HTML do
+   template (tem hooks de edição inline do CMS, arriscado alterar), só
+   CSS a apanhar as classes já existentes. */
+.bio h3 {
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+}
+
+.bio h3 small {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 400;
+  margin-top: 0.15rem;
+}
+
+.instructor-bio-photo {
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(44, 33, 24, 0.15);
+}
+
+.bio .post-body {
+  line-height: 1.6;
+  color: var(--hopin-text);
+}
+
+.bio .post-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* As <hr> entre instrutores vêm do tema/Bootstrap a cinza forte —
+   suaviza e dá mais espaço vertical antes/depois. */
+.content-col hr {
+  margin: 0;
+  border-top-color: rgba(44, 33, 24, 0.12);
 }
