@@ -353,6 +353,12 @@ server {
 		break;
 	}
 
+	location /media {
+		rewrite ^/(.*)/$ /$1 permanent;
+		try_files $uri =404;
+		root /data/web;
+	}
+
 	location / {
 		{{ if eq $proto "uwsgi" }}
 		include uwsgi_params;

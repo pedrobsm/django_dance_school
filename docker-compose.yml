@@ -125,8 +125,14 @@ volumes:
     external:
       name: danceschool_staticfiles
   media:
-    external:
-      name: danceschool_media
+    # PoC Hetzner: bind ao volume de bloco anexado à VM em vez do storage
+    # interno do Docker, para testar upload/serving de media a partir de um
+    # disco dedicado. Ajusta "device" se o mountpoint do volume for outro.
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/volume-media-hel1/media
   private_media:
     external:
       name: danceschool_privatemedia
