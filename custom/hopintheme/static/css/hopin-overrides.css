@@ -117,3 +117,17 @@ footer.bg-dark a:hover {
 .splash-header {
   background-color: var(--hopin-dark);
 }
+
+/* Seletor de idioma no navbar: cada opção é um <form> (POST para a vista
+   set_language do Django), por isso é preciso tirar a margem do form e
+   fazer o botão parecer um item normal de dropdown. */
+.dropdown-menu form {
+  margin: 0;
+}
+.dropdown-menu form .dropdown-item {
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}

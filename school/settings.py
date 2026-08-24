@@ -350,7 +350,53 @@ LOGGING = {
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
-LANGUAGE_CODE = 'en'
+# A HOP IN comunica sobretudo em português europeu, com inglês como segunda
+# língua (ver CLAUDE.md), por isso o padrão é 'pt'.
+LANGUAGE_CODE = environ.get('LANGUAGE_CODE', 'pt')
+
+# Sobrepõe o LANGUAGES = [('en', 'English')] herdado de
+# danceschool.default_settings (importado com `*` no topo deste ficheiro).
+LANGUAGES = [
+    ('pt', 'Português'),
+    ('en', 'English'),
+]
+
+# Traduções do próprio projeto. LOCALE_PATHS tem prioridade sobre os
+# catálogos das apps instaladas, o que nos permite traduzir strings do
+# pacote django-danceschool (que não traz catálogo pt nenhum) sem editar o
+# pacote em site-packages.
+LOCALE_PATHS = [os.path.join(BASE_DIR, 'locale')]
+
+# Configuração de idiomas do django-cms (a chave 1 corresponde ao SITE_ID).
+# Cada idioma faz fallback para o outro: uma página ainda não traduzida
+# mostra o conteúdo do outro idioma em vez de dar 404, o que é importante
+# enquanto a tradução de conteúdo estiver a meio.
+CMS_LANGUAGES = {
+    SITE_ID: [
+        {
+            'code': 'pt',
+            'name': 'Português',
+            'public': True,
+            'hide_untranslated': False,
+            'redirect_on_fallback': False,
+            'fallbacks': ['en'],
+        },
+        {
+            'code': 'en',
+            'name': 'English',
+            'public': True,
+            'hide_untranslated': False,
+            'redirect_on_fallback': False,
+            'fallbacks': ['pt'],
+        },
+    ],
+    'default': {
+        'public': True,
+        'hide_untranslated': False,
+        'redirect_on_fallback': False,
+        'fallbacks': ['pt', 'en'],
+    },
+}
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
