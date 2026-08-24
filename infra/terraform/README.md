@@ -170,3 +170,42 @@ terraform destroy
 
 Isto apaga a VM, discos (incluindo o disco de dados com a base de dados!) e
 rede. Faz backup do Postgres antes, se houver dados que importem.
+
+## Problemas conhecidos (já corrigidos, mas fica registado)
+
+**cloud-init falhou no primeiro `apply`** (VM `vm-hopin-poc`, 2026-08-24):
+duas causas, já corrigidas em `cloud-init.yaml.tpl`, mas se voltares a ver
+sintomas parecidos numa VM nova, o diagnóstico é este:
+
+1. Uma linha do `runcmd:` continha `"AVISO: texto"` sem estar dentro de um
+   bloco literal — o YAML interpretou o `:` como separador de mapa e partiu
+   o `runcmd` inteiro (nenhum comando corria, incluindo `ufw`, `fail2ban`,
+   swap, `docker` group). **Fix**: todo o shell script passou para
+   `write_files` (`/opt/hopin/bootstrap.sh`, dentro de um bloco `content: |`
+   literal, imune a este tipo de problema de parsing) e o `runcmd:` só
+   invoca esse script.
+2. O disco de dados é anexado à VM como recurso Terraform separado, depois
+   da VM já existir — no primeiro boot, quando o `disk_setup`/`mounts` do
+   cloud-init corria, o disco podia ainda não estar presente. **Fix**: o
+   `bootstrap.sh` agora espera ativamente (até 60s) pelo dispositivo antes
+   de particionar/formatar/montar, em vez de depender dos módulos
+   declarativos do cloud-init (que só correm uma vez e falham
+   permanentemente se o disco não estiver lá a tempo).
+
+Confirma que o cloud-init terminou bem numa VM nova com:
+
+```bash
+ssh -i ./ssh/hopin_vm_key <user>@<ip> "cloud-init status --wait && cat /var/log/hopin-bootstrap.log"
+```
+
+**⚠️ Não corras `terraform apply`/`plan` na VM `vm-hopin-poc` já existente
+sem cuidado**: a correção acima mudou o `custom_data` da VM, e o Azure só
+aplica `custom_data` na criação — por isso o Terraform vai querer
+**recriar a VM** (destruir e criar de novo) para "aplicar" essa alteração,
+o que apagaria a app já instalada. Como a VM atual já foi corrigida
+manualmente por SSH (swap, disco `/data`, `ufw`, `fail2ban` todos ativos),
+**não precisas de reaplicar nada nela** — o `cloud-init.yaml.tpl` corrigido
+só interessa para a *próxima* VM que criares de raiz (ex: depois de um
+`terraform destroy`, ou um ambiente novo). Se correres `terraform plan` e
+vires "must be replaced" por causa do `custom_data`, não avances com
+`apply` sem teres a certeza de que queres mesmo recriar a VM.

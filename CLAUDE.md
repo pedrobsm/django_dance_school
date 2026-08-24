@@ -41,6 +41,19 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
   (interativo de propósito — swarm init, secrets, migrações). Isso faz-se
   manualmente por SSH depois do `terraform apply`. Notas de contexto ficam
   em `/opt/hopin/INFRA_NOTES.md` dentro da própria VM.
+- **VM já criada e viva**: `vm-hopin-poc`, IP `20.126.64.224`, user
+  `hopinadmin`, chave em `C:\Users\pedro\.ssh\hopin_vm_key` (neste PC, apesar
+  de o `apply` ter corrido noutro). SSH confirmado a funcionar a partir
+  desta máquina. Estado: Docker ativo, disco `/data` montado, swap 2GB, ufw
+  + fail2ban ativos, repo em `/opt/hopin/app`. **Passo 6 do
+  `infra/terraform/README.md` (swarm init / secrets / build / migrações) 
+  ainda por fazer.**
+- **cloud-init falhou no primeiro `apply` desta VM** (bug de parsing YAML
+  no `runcmd:` + race condition no anexar do disco de dados) — já corrigido
+  em `infra/terraform/cloud-init.yaml.tpl` e remediado manualmente por SSH
+  na VM existente. Detalhes e um aviso importante (não corras `terraform
+  apply`/`plan` sem cuidado nesta VM — mudou o `custom_data`, o que força
+  recriação) em `infra/terraform/README.md`, secção "Problemas conhecidos".
 - Stack: Docker Compose (web + huey + postgres + redis, mais nginx/caddy a
   acrescentar para TLS e para servir `/media/`).
 
