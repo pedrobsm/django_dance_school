@@ -87,6 +87,11 @@ INSTALLED_APPS = [
     # '< my_custom_app >',
     'democontent',
 
+    # Overrides de templates/CSS do tema (tem de vir antes do tema para o
+    # Django encontrar aqui primeiro, já que só usamos APP_DIRS e não há
+    # TEMPLATES['DIRS'] configurado). Ver custom/hopintheme/.
+    'hopintheme',
+
     # The project provides some default theming options, including easy Bootstrap 4
     # plugins. As additional themes are included in the project, they should be added
     # here.  Uncomment a theme to enable the project to search for its template

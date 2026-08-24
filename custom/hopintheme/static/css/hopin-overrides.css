@@ -1,0 +1,25 @@
+/*
+ * Overrides para o tema danceschool.themes.business_frontpage.
+ *
+ * Este ficheiro é carregado DEPOIS de business-frontpage.css (ver
+ * custom/hopintheme/templates/cms/home.html), por isso qualquer regra aqui
+ * ganha ao original em caso de empate de especificidade.
+ *
+ * NOTA: a HOP IN ainda não tem uma paleta de cores oficial definida (ver
+ * CLAUDE.md, secção "Acesso a contexto adicional") — por isso este ficheiro
+ * só corrige um bug de legibilidade real, não aplica uma paleta de marca.
+ * Quando a paleta oficial existir, os valores de cor entram aqui.
+ */
+
+/* Bug: o footer do tema usa "bg-dark" mas nunca ganha uma cor de texto
+   clara (a regra .footer{color:#fff} de business-frontpage.css não bate
+   certo com a classe real do elemento) — texto escuro sobre fundo quase
+   preto, ilegível. */
+footer.bg-dark,
+footer.bg-dark a {
+  color: #fff;
+}
+
+footer.bg-dark a:hover {
+  color: #f8f9fa;
+}

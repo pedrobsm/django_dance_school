@@ -218,9 +218,24 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
 
 - **Google Drive da HOP IN**: usar o MCP do Google Drive (autenticar se
   necessário) para consultar documentos da associação (missão, identidade
-  visual navy/dourado, conteúdos para páginas do site, composição das turmas de aulas etc.) em vez de
-  inventar conteúdo. Pasta raiz partilhada a partir de
+  visual, conteúdos para páginas do site, composição das turmas de aulas
+  etc.) em vez de inventar conteúdo. Pasta raiz partilhada a partir de
   `hopindancecommunity@gmail.com`.
+- **Correção (2026-08-24): não há ainda paleta de cores oficial definida.**
+  A nota anterior aqui ("navy/dourado") estava desatualizada/incorreta —
+  verificado no Drive: `Proposta Brand Compass` (doc, 11/08/2026, o
+  documento de posicionamento mais recente) diz explicitamente que a
+  identidade visual concreta **ainda não foi decidida**, e pede o oposto de
+  navy/dourado — "uma paleta que fuja das cores corporativas ou demasiado
+  sérias", personalidade **warm/welcoming/playful/friendly/curious**,
+  "colorido, expressivo, com cor, calor e energia". `Brand Comparison.xlsx`
+  e `Estudo de Branding_ Marta.pdf` são pesquisa de concorrência (cores de
+  *outras* escolas de swing, para inspiração), não a paleta da HOP IN. O
+  PDF tem mood boards com swatches em imagem que a leitura por texto do MCP
+  não consegue extrair — se precisares mesmo das cores exatas desses
+  boards, é preciso ver o PDF visualmente. **Antes de aplicar qualquer
+  paleta "oficial" ao site, confirma com o Pedro** — não presumir navy/
+  dourado nem inventar cores "definitivas" sem confirmação.
 
 ## Objetivo desta fase (PoC)
 
