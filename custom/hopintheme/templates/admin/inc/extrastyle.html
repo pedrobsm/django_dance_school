@@ -1,7 +1,13 @@
-{# Ponto de extensão oficial do djangocms_admin_style — ver o comentário no
-   ficheiro original: "override this template with your app to have extra
-   styles". Isto sobrepõe-se por ordem no INSTALLED_APPS (hopintheme vem
-   antes de djangocms_admin_style), sem tocar em base_site.html nem em
-   nenhum outro template do admin. #}
+<!-- Ponto de extensão oficial do djangocms_admin_style — ver o comentário
+     no ficheiro original: "override this template with your app to have
+     extra styles". Isto sobrepõe-se por ordem no INSTALLED_APPS
+     (hopintheme vem antes de djangocms_admin_style), sem tocar em
+     base_site.html nem em nenhum outro template do admin.
+
+     NOTA: usa comentário HTML aqui, não {# comentário Django #} — por
+     alguma razão neste setup o {# #} não estava a ser interpretado como
+     comentário pelo motor de templates e aparecia como texto visível na
+     página (confirmado na resposta HTML em bruto). Um comentário HTML
+     normal fica sempre invisível no browser, independentemente disso. -->
 {% load static %}
 <link rel="stylesheet" type="text/css" href="{% static 'css/hopin-admin-overrides.css' %}">
