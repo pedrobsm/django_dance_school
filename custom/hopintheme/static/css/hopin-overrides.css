@@ -139,3 +139,16 @@ footer.bg-dark a:hover {
 .dropdown-menu .dropdown-item[hreflang] {
   cursor: pointer;
 }
+
+/* Bug: a lista de instrutores ("Set of Staff Images or Bios") põe a foto
+   de cada pessoa a float:left (core/staff_list.html, template vendor),
+   mas a <div class="bio"> à volta não "limpa" esse float — a div fecha
+   pela altura do texto, não da foto (mais alta). O <hr> a seguir (fora da
+   div) some por baixo da foto ainda a flutuar, e a entrada seguinte
+   arranca colada/sobreposta a essa foto em vez de abaixo dela. Com poucas
+   entradas passava despercebido; com a lista toda de instrutores
+   (13 pessoas) ficava uma escadaria de fotos e texto desalinhados. Fix:
+   clearfix clássico — força a div a estender-se até abaixo da foto. */
+.bio {
+  overflow: auto;
+}
