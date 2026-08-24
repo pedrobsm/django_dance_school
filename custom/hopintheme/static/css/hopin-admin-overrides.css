@@ -5,39 +5,90 @@
  * para isto (ver o ficheiro original: "override this template with your
  * app to have extra styles").
  *
- * djangocms_admin_style define as cores do admin como custom properties
- * CSS num seletor com atributo (:root[data-theme=light] etc.), que tem
- * mais especificidade que um simples ":root". Por isso usamos !important
- * aqui — sem isso, os valores originais ganhavam sempre.
+ * djangocms_admin_style define as cores como custom properties CSS, mas
+ * em DOIS sistemas separados:
+ *   1. O clássico do Django (--primary, --secondary, --header-bg, etc.),
+ *      só definido dentro de :root[data-color-scheme="light"/"dark"] ou
+ *      :root[data-theme="light"/"dark"] — sem NENHUM fallback para quando
+ *      o visitante nunca escolheu tema (sem esses atributos, o toggle do
+ *      próprio djangocms_admin_style só os define depois de clicado).
+ *      Sem esses atributos, e sem os overrides abaixo, estas
+ *      variáveis ficam TOTALMENTE indefinidas para a maioria dos
+ *      visitantes — daí elementos como o header ficarem sem cor.
+ *   2. Um sistema mais recente de tokens "--dca-*" (usado pela toolbar
+ *      django-cms e por componentes mais novos do admin), que ESSE sim
+ *      tem fallback via "@media (prefers-color-scheme: dark)" quando não
+ *      há atributo. É o que realmente pinta a maior parte do que se vê.
+ *
+ * Por isso aqui definimos os DOIS sistemas, e cobrimos todos os casos:
+ * sem atributo (com e sem o SO em dark mode) e com atributo explícito
+ * (claro ou escuro, depois de alguém clicar no toggle). Como a HOP IN
+ * ainda não tem paleta oficial nem uma variante dark pensada, usamos o
+ * mesmo conjunto de cores em todos os casos — não um tema escuro "a
+ * sério", só a garantia de que fica sempre com as cores da HOP IN.
+ *
+ * !important em tudo porque os seletores de origem (com atributo) têm
+ * mais especificidade que um ":root" simples — sem isto, os valores
+ * originais ganhavam sempre.
  *
  * PALETA PLACEHOLDER — mesma nota de custom/hopintheme/static/css/
  * hopin-overrides.css: a HOP IN ainda não tem paleta oficial definida.
  * Troca os valores abaixo quando existir uma.
  */
 
-:root:not([data-color-scheme]):not([data-theme]),
-:root[data-color-scheme="light"],
-:root[data-theme="light"] {
+:root {
   --primary: #d9663a !important;        /* terracota — cabeçalhos, botões */
   --secondary: #2c2118 !important;      /* castanho quente — fundo do header */
   --accent: #e8ab1f !important;         /* dourado mostarda */
   --header-color: #fdf6ec !important;   /* creme — texto/título no header escuro */
-  --header-branding-color: var(--accent) !important;
-  --link-fg: #b34f2a !important;        /* terracota mais escura — contraste em fundo branco */
+  --header-bg: #2c2118 !important;      /* explícito: a regra original deriva
+                                            isto de --secondary, mas essa
+                                            regra nunca ativa sem atributo */
+  --header-branding-color: #e8ab1f !important;
+  --header-link-color: #fdf6ec !important;
+  --breadcrumbs-bg: #d9663a !important;
+  --breadcrumbs-fg: #fdf6ec !important;
+  --breadcrumbs-link-fg: #fdf6ec !important;
+  --link-fg: #b34f2a !important;        /* terracota mais escura — contraste em fundo claro */
   --link-hover-color: #8a3c20 !important;
   --link-selected-fg: #b34f2a !important;
-  --button-bg: var(--primary) !important;
+  --button-bg: #d9663a !important;
   --button-hover-bg: #b34f2a !important;
-  --default-button-bg: var(--secondary) !important;
+  --default-button-bg: #2c2118 !important;
   --default-button-hover-bg: #3a2c20 !important;
+
+  /* Tokens "dca-*" — usados pela toolbar django-cms e componentes mais
+     recentes do admin. dca-white = cor de superfície (fundos escuros
+     tipo header/toolbar aqui), dca-black = texto sobre essa superfície,
+     dca-primary = cor de ação/destaque. */
+  --dca-white: #2c2118 !important;
+  --dca-black: #fdf6ec !important;
+  --dca-primary: #d9663a !important;
 }
 
+/* Repetido explicitamente para quando o SO/browser prefere dark mode e
+   ninguém escolheu tema à mão — o :root simples acima já cobre isto por
+   !important, mas o media query do próprio djangocms_admin_style tem
+   mais especificidade dentro do seu próprio contexto, por isso repetimos
+   aqui para não haver dúvidas. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-color-scheme]):not([data-theme]) {
+    --dca-white: #2c2118 !important;
+    --dca-black: #fdf6ec !important;
+    --dca-primary: #d9663a !important;
+  }
+}
+
+/* E para quando alguém clica no toggle de tema do djangocms_admin_style
+   e ele passa a definir o atributo explicitamente. */
 :root[data-color-scheme="dark"],
-:root[data-theme="dark"] {
-  --primary: #e2825c !important;        /* terracota mais claro, para contraste em fundo escuro */
-  --link-fg: #f0a875 !important;
-  --link-hover-color: #f5c79b !important;
-  --link-selected-fg: #f0a875 !important;
-  --button-bg: var(--primary) !important;
-  --button-hover-bg: #f0a875 !important;
+:root[data-theme="dark"],
+:root[data-color-scheme="light"],
+:root[data-theme="light"] {
+  --primary: #d9663a !important;
+  --secondary: #2c2118 !important;
+  --header-bg: #2c2118 !important;
+  --dca-white: #2c2118 !important;
+  --dca-black: #fdf6ec !important;
+  --dca-primary: #d9663a !important;
 }
