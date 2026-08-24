@@ -212,6 +212,83 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     fazer isso (apagá-la manualmente ou re-correr o comando corrigido)
     quando for pedido explicitamente.
 
+13. **Seletor de idioma não pode usar POST** — o django-cms tem cache de
+    página ligada por omissão (`CMS_PAGE_CACHE`, `Cache-Control:
+    max-age=60`). Uma resposta servida da cache leva embutido o token CSRF
+    de quem a renderizou primeiro e **não** traz `Set-Cookie: csrftoken`,
+    por isso um POST do visitante é validado contra um token que não é dele
+    → **403 intermitente**. Confirmado ao vivo: um GET em cache devolveu só
+    `django_language`, sem `csrftoken`. **Solução**: o seletor troca de
+    idioma por **link GET** (tag `switch_language_url` em
+    `custom/hopintheme/templatetags/hopin_i18n.py`), que dispensa CSRF e é
+    seguro em cache. Funciona porque as rotas públicas estão dentro de
+    `i18n_patterns` — o próprio URL identifica o idioma, não é preciso
+    estado no servidor. **Regra geral**: qualquer formulário POST em páginas
+    CMS públicas sofre do mesmo problema; preferir GET ou desligar a cache
+    para essa página.
+
+14. **`makemessages` precisa da pasta `locale/` criada antes** — senão dá
+    `CommandError: Unable to find a locale path to store translations`. O
+    catálogo do `django-danceschool` foi extraído a correr
+    `django-admin makemessages -l pt` *dentro* de
+    `site-packages/danceschool/` (2302 msgids) e depois copiado para
+    `locale/pt/LC_MESSAGES/django.po` do projeto. Isto funciona porque
+    `LOCALE_PATHS` tem prioridade sobre os catálogos das apps instaladas —
+    traduz o pacote sem lhe tocar em `site-packages`.
+    **Não corras `makemessages` ao nível do projeto por cima deste
+    ficheiro**: as strings do danceschool não existem no código do projeto,
+    seriam marcadas obsoletas (ou removidas com `--no-obsolete`).
+    Os `.mo` **não** vão para o git (já em `.gitignore`); são compilados no
+    build da imagem com `msgfmt` (ver `docker/web/Dockerfile`) — usa-se
+    `msgfmt` direto e não `manage.py compilemessages` porque este último
+    carrega o `settings.py` completo, que precisa de `DATABASE_URL`/
+    `SECRET_KEY`, coisas que não existem durante o build.
+
+15. **Ordem entre `create_hopin_demo_data` e `translate_cms_pages`** — os
+    dois escrevem o manifesto da homepage (o primeiro numa variante sem
+    acentos, o segundo com acentos e nos dois idiomas). Corre sempre
+    `create_hopin_demo_data` **primeiro** e `translate_cms_pages`
+    **depois**. Vale a pena unificar os dois textos num módulo partilhado
+    quando o conteúdo real da HOP IN estabilizar.
+
+## Internacionalização (PT/EN)
+
+Branch: `feature/i18n-pt-en` (por integrar em `master`).
+
+- **Configuração**: `LANGUAGE_CODE='pt'` (sobreponível por env), `LANGUAGES`
+  PT/EN, `CMS_LANGUAGES` com fallback mútuo (`hide_untranslated: False`), e
+  `LOCALE_PATHS` a apontar para `locale/` na raiz do projeto. Sem isto o
+  projeto herdava `LANGUAGES = [('en', 'English')]` do
+  `danceschool.default_settings` — i18n estava meio ligado (`USE_I18N` e
+  `LocaleMiddleware` já lá estavam) mas com um só idioma.
+- **URLs**: as rotas públicas estão dentro de `i18n_patterns` → `/pt/...` e
+  `/en/...`; `/` redireciona conforme o `Accept-Language`. O `admin/` e as
+  vistas `i18n/` ficam **sem** prefixo de propósito. Nota: isto também
+  prefixa o `sitemap.xml` e os URLs do django-filer que vêm dentro de
+  `danceschool.urls` — não é o convencional para o sitemap, mas são todos
+  resolvidos por `reverse()`, por isso funcionam.
+- **Slugs por idioma**: `/pt/calendario/` e `/en/calendar/` são a mesma
+  página. Os slugs **ingleses** das páginas criadas pelo
+  `create_hopin_demo_data` ficaram em português (`professores`, `turmas`) —
+  só o título visível foi corrigido para inglês, o slug não, para não mudar
+  URLs. Se quiseres alinhar, é uma alteração simples na UI do CMS.
+- **Cobertura da tradução de UI**: 330 de 2302 strings — todo o percurso
+  público (inscrição, aulas, eventos, carrinho, faturas, conta, check-in,
+  labels e erros de formulários). O back-office financeiro/admin/relatórios
+  está **por traduzir de propósito**: só a equipa o vê e triplicava o
+  trabalho de revisão sem ganho para a PoC. Para continuar, é só preencher
+  mais `msgstr` no `.po` e reconstruir a imagem.
+- **Traduzir páginas CMS**: `python3 manage.py translate_cms_pages`
+  (idempotente). Cria títulos/slugs PT, copia conteúdo EN→PT nas páginas sem
+  versão PT, corrige títulos EN que estavam em português, escreve o
+  manifesto da homepage nos dois idiomas e publica ambos. Cobre também os
+  static placeholders (rodapé).
+- **Registo de tratamento**: informal ("tu"), consistente com o tom do
+  documento *Brand Compass* da HOP IN.
+- **Por rever por um humano**: a versão **inglesa** do manifesto da homepage
+  é uma tradução do texto português existente, feita pelo Claude — deve ser
+  revista por alguém da HOP IN antes de ir para produção real.
+
 ## Dados de demonstração
 
 - `python3 manage.py create_demo_data` — dados genéricos (Maria Silva,
