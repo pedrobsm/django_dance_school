@@ -29,18 +29,22 @@
 }
 
 /* Fundo/texto gerais: creme quente em vez de branco frio, texto castanho
-   quente em vez de preto puro. */
+   quente em vez de preto puro. !important porque bootstrap.min.css define
+   "body{color:#212529;background-color:#fff}" com a MESMA especificidade
+   (seletor de elemento) e carrega depois de nós — sem !important, o
+   Bootstrap ganhava sempre o empate por ser o último a carregar. */
 body {
-  background-color: var(--hopin-cream);
-  color: var(--hopin-text);
+  background-color: var(--hopin-cream) !important;
+  color: var(--hopin-text) !important;
 }
 
-/* Links e primary do Bootstrap (botões, badges, texto) */
+/* Links e primary do Bootstrap (botões, badges, texto). Mesma razão do
+   !important: bootstrap.min.css também define "a{color:#007bff}". */
 a {
-  color: var(--hopin-primary);
+  color: var(--hopin-primary) !important;
 }
 a:hover {
-  color: var(--hopin-primary-dark);
+  color: var(--hopin-primary-dark) !important;
 }
 
 .btn-primary {
@@ -112,10 +116,16 @@ footer.bg-dark a:hover {
   color: var(--hopin-accent) !important;
 }
 
-/* Cabeçalho de splash (imagem de fundo na home) — garantir contraste do
-   título mesmo sem imagem de fundo definida ainda. */
+/* Cabeçalho de splash (imagem de fundo na home). O tema usa um
+   placeholder externo morto (via.placeholder.com, serviço descontinuado)
+   como imagem de fundo por omissão quando ninguém definiu uma imagem real
+   no CMS — resultado: fundo transparente, um vazio branco enorme por
+   cima da navbar. !important porque isto tem de vencer o
+   style="background:url(...)" inline do template (o shorthand "background"
+   inline reset a cor para transparente; uma regra normal em folha de
+   estilo externa NUNCA vence estilo inline, só !important consegue). */
 .splash-header {
-  background-color: var(--hopin-dark);
+  background-color: var(--hopin-dark) !important;
 }
 
 /* Seletor de idioma no navbar. */
