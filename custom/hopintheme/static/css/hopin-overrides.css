@@ -120,10 +120,17 @@ footer.bg-dark a:hover {
    placeholder externo morto (via.placeholder.com, serviço descontinuado)
    como imagem de fundo por omissão quando ninguém definiu uma imagem real
    no CMS — resultado: fundo transparente, um vazio branco enorme por
-   cima da navbar. !important porque isto tem de vencer o
-   style="background:url(...)" inline do template (o shorthand "background"
-   inline reset a cor para transparente; uma regra normal em folha de
-   estilo externa NUNCA vence estilo inline, só !important consegue). */
+   cima da navbar. !important porque isto tem de vencer o atributo
+   "style" inline do template, que define um background via CSS url —
+   uma regra normal em folha de estilo externa NUNCA vence estilo
+   inline, só !important consegue.
+   NOTA: não escrevas a palavra "url" seguida de parêntesis, nem em
+   código nem em comentários deste ficheiro — o post-processador do
+   Whitenoise faz scan cego a esse padrão em todo o CSS, incluindo
+   dentro de comentários, e tenta resolver isso como um ficheiro real
+   no disco. Já partiu o collectstatic uma vez por causa disto (um
+   comentário anterior tinha esse padrão a descrever o atributo style
+   inline do template). */
 .splash-header {
   background-color: var(--hopin-dark) !important;
 }
