@@ -251,6 +251,84 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     **depois**. Vale a pena unificar os dois textos num módulo partilhado
     quando o conteúdo real da HOP IN estabilizar.
 
+19. **`default_settings.py` do pacote `danceschool` instancia um `SqliteHuey`
+    com efeitos secundários reais só por ser importado** — `school/settings.py`
+    faz `from danceschool.default_settings import *` e só depois sobrepõe
+    `HUEY = RedisHuey(...)`, mas o `SqliteHuey(...)` do meio já correu e
+    tentou abrir/inicializar um ficheiro `huey.sqlite3` local nesse instante,
+    antes de ser descartado. Isto é inofensivo isoladamente, mas se dois
+    processos arrancam ao mesmo tempo (os 2 workers do Gunicorn, ou o
+    container `web` e o `huey` em simultâneo, ou durante um restart) podem
+    colidir nesse `SqliteHuey.__init__` e um deles crasha no arranque com
+    `sqlite3.OperationalError: database is locked` (mata o processo Python
+    inteiro, antes do Django sequer carregar — não é um erro do Huey em uso,
+    é só a inicialização acidental). **Confirmado no branch vanilla** (ver
+    secção abaixo) ao forçar `docker service update --force danceschool_web`
+    logo a seguir ao deploy — a tarefa falhou uma vez e o Swarm
+    reiniciou-a automaticamente com sucesso (comportamento "any" do restart
+    policy). **Não é um bug nosso nem específico da HOP IN** — é
+    comportamento do próprio `danceschool.default_settings`, herdado desde o
+    fork. Se voltar a acontecer: não entrar em pânico, o Swarm normalmente
+    autorrecupera; se não recuperar sozinho, tenta outro
+    `docker service update --force` (a colisão é por timing, raramente
+    repete duas vezes seguidas).
+
+## Teste vanilla (Hetzner) — comparação sem alterações HOP IN
+
+**Objetivo**: perceber o comportamento do `django-danceschool` "de fábrica"
+(sem paleta de cores, sem i18n PT/EN, sem dados de demo da HOP IN, sem
+`democontent`) para conseguir distinguir bugs upstream de problemas
+introduzidos pelas nossas customizações. Pedido em 2026-08-24.
+
+- **Branch**: `vanilla/hetzner-media-poc`, criado a partir do commit exato
+  onde o fork começou (`0732c93`, o último commit do upstream Lee Tucker
+  antes do primeiro commit do `pedrobsm`) — **zero** alterações estéticas,
+  i18n, ou de conteúdo. Só têm 8 commits em cima do fork, todos correções de
+  infraestrutura/compatibilidade genuínas (não específicas da HOP IN,
+  seriam precisas em qualquer deploy feito hoje):
+  - Fix Debian sources + mudança para `python:3.10-slim-bookworm`
+  - Pins de versão (`django-cms`, `django-addanother`,
+    `django-admin-rangefilter`, `django-multiselectfield`) — mesmo problema
+    do item 3 acima, reaparece em qualquer build feito em 2026
+  - O fix do `/.well-known/acme-challenge/` (item 8 acima)
+  - O fix do `huey`/`env.web` (item 9 acima)
+  - Fix novo, só neste branch: `location /media` também faltava no bloco
+    HTTP simples do `nginx.tmpl` (só existia no bloco HTTPS) — mesma classe
+    de bug do item 8, adicionado por paridade.
+  - **Não inclui**: `democontent`/`create_demo_data`, `create_hopin_demo_data`,
+    paleta de cores, dark mode, i18n PT/EN, fixes de admin/favicon ligados
+    ao i18n. O site fica com o conteúdo puramente genérico do
+    `django-danceschool` (sem `setupschool` corrido também).
+- **VM**: Hetzner, IP `77.42.45.222`, user **`root`** (não `hopinadmin` — a
+  imagem Hetzner não tem esse user), mesma chave SSH
+  (`C:\Users\pedro\.ssh\hopin_vm_key`). Ubuntu 26.04 LTS. Volume de bloco de
+  10GB já vinha anexado e montado em `/mnt/volume-media-hel1` antes desta
+  sessão.
+- **Volume de media**: o `docker-compose.yml` deste branch já não usa
+  `media: external: true` — passou a `driver: local` com `driver_opts`
+  (`type: none, o: bind, device: /mnt/volume-media-hel1/media`), ou seja, o
+  volume nomeado do Docker é agora um bind direto ao disco anexado.
+  **Confirmado a funcionar de ponta a ponta**: ficheiro escrito pelo Django
+  em `MEDIA_ROOT` (`/data/web/school/media/...`) aparece imediatamente em
+  `/mnt/volume-media-hel1/media/...` no host, e é servido corretamente via
+  `https://77-42-45-222.sslip.io/media/...` (200).
+- **Site em produção e funcional**: `https://77-42-45-222.sslip.io/` e
+  `/admin/login/` respondem 200, certificado real da Let's Encrypt validado
+  externamente. Superuser `admin` criado (password em
+  `/opt/hopin/.superuser_credentials` na VM). Sem dados de demo — o site
+  mostra o estado "vazio" genérico do django-cms/danceschool.
+- **Achado**: a colisão `SqliteHuey`/`database is locked` no arranque (item
+  19 acima) foi descoberta aqui, ao forçar um restart do `web` logo a
+  seguir ao deploy. Autorrecuperou sozinha via Swarm.
+- **Imagens Docker**: construídas **localmente na VM** a partir do código
+  deste branch (`docker build`), **não** usar a imagem `ghcr.io/pedrobsm/
+  danceschool-web:latest` — essa é publicada por CI a partir do `master` e
+  já traz todas as customizações da HOP IN, o que anularia o propósito do
+  teste.
+- **Por fazer**: comparação lado-a-lado com o deploy Azure/master
+  (`https://20-126-64-224.sslip.io/`) para identificar diferenças de
+  comportamento atribuíveis às nossas alterações.
+
 ## Internacionalização (PT/EN)
 
 **Integrado em `master` e no ar** (2026-08-24). O branch
