@@ -253,7 +253,11 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
 
 ## Internacionalização (PT/EN)
 
-Branch: `feature/i18n-pt-en` (por integrar em `master`).
+**Integrado em `master` e no ar** (2026-08-24). O branch
+`feature/i18n-pt-en` já foi merged; a VM corre `master` e a imagem
+`danceschool_web:latest` é construída a partir dele. A imagem anterior
+ficou guardada como `danceschool_web:pre-i18n` e há um dump da BD em
+`/data/backups/pre-i18n-*.sql`, caso seja preciso reverter.
 
 - **Configuração**: `LANGUAGE_CODE='pt'` (sobreponível por env), `LANGUAGES`
   PT/EN, `CMS_LANGUAGES` com fallback mútuo (`hide_untranslated: False`), e
