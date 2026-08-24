@@ -25,16 +25,33 @@ def switch_language_url(context, lang_code):
         return '/{0}/'.format(lang_code)
 
     current = request.get_full_path()
-    url = translate_url(current, lang_code)
 
-    if url == current:
-        # translate_url so troca o URL se conseguir resolve-lo e voltar a
-        # gera-lo no idioma de destino. Quando nao consegue (vistas fora do
-        # URLconf traduzivel), trocamos o prefixo a mao para o link nao
-        # ficar a apontar ao mesmo idioma.
-        codes = dict(settings.LANGUAGES)
-        parts = current.split('/', 2)
-        if len(parts) > 2 and parts[1] in codes:
-            url = '/{0}/{1}'.format(lang_code, parts[2])
+    # 1) translate_url resolve o URL atual e volta a gera-lo no idioma de
+    #    destino. E a melhor opcao quando funciona, porque preserva URLs
+    #    profundos (ex.: o detalhe de uma noticia dentro de um apphook).
+    url = translate_url(current, lang_code)
+    if url != current:
+        return url
+
+    # 2) Se nao mudou nada, nao conseguiu resolver. O caso tipico e uma
+    #    pagina CMS simples: o translate_url reverte para cms.views.details
+    #    com o *mesmo* slug, mas os slugs mudam de idioma para idioma
+    #    (/en/calendar/ vs /pt/calendario/). A propria pagina sabe o seu URL
+    #    em cada idioma, prefixo de idioma incluido.
+    page = getattr(request, 'current_page', None)
+    if page is not None:
+        try:
+            page_url = page.get_absolute_url(language=lang_code)
+        except Exception:  # noqa: BLE001 - nunca rebentar o navbar por isto
+            page_url = None
+        if page_url:
+            return page_url
+
+    # 3) Ultimo recurso: trocar o prefixo a mao, para o link pelo menos nao
+    #    ficar a apontar ao idioma em que ja estamos.
+    codes = dict(settings.LANGUAGES)
+    parts = current.split('/', 2)
+    if len(parts) > 2 and parts[1] in codes:
+        return '/{0}/{1}'.format(lang_code, parts[2])
 
     return url
