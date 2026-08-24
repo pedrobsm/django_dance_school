@@ -374,6 +374,25 @@ ficou guardada como `danceschool_web:pre-i18n` e há um dump da BD em
     docker service logs danceschool_nginx --since 2h 2>&1 \
       | grep sslip.io | grep -oE '" [0-9]{3} ' | sort | uniq -c | sort -rn
     ```
+
+19. **Os calendários não respeitam o i18n do Django** — são desenhados no
+    browser pelo FullCalendar/moment.js, por isso `LANGUAGE_CODE`/`USE_L10N`
+    não lhes chegam (só afetam render do lado do servidor). O upstream não
+    define formato nem passa locale → o FullCalendar assume inglês e
+    **relógio de 12 horas (AM/PM)**, e o popup do evento tinha
+    `'MMM Do h:mm A'` escrito à mão no template. Não dá para resolver com
+    `locale: 'pt'`: o danceschool só distribui o `fullcalendar.min.js` e o
+    `moment.min.js` base, sem ficheiros de locale. **Corrigido** com
+    `timeFormat`/`slotLabelFormat` a `'H:mm'` e um formato por idioma no
+    popup, em dois overrides:
+    - `custom/hopintheme/templates/core/public_calendar.html` (público)
+    - `custom/hopintheme/templates/private_events/private_fullcalendar.html`
+      (staff) — este é uma **cópia de 235 linhas** do template upstream com
+      apenas 3 alterações; se atualizares o `django-danceschool`, compara
+      com o original e re-aplica só essas três. O ficheiro diz isto no topo.
+    Em PT usa-se data numérica (`DD/MM/AAAA`) de propósito: além de ser a
+    convenção portuguesa, evita o moment cair em nomes de meses ingleses
+    por falta de dados de locale.
 - **Slugs por idioma**: `/pt/calendario/` e `/en/calendar/` são a mesma
   página. Os slugs **ingleses** das páginas criadas pelo
   `create_hopin_demo_data` ficaram em português (`professores`, `turmas`) —
