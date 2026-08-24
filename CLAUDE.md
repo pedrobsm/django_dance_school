@@ -10,8 +10,8 @@ alunos/participantes (inscrevem-se), e voluntários (confirmam presenças e
 pagamentos).
 
 Este é atualmente um **PoC** para avaliar se esta plataforma serve a
-associação — não é ainda produção real. Comunicação sobre a HOP IN é em
-**português europeu**.
+associação — não é ainda produção real. Comunicação sobre a HOP IN é bilingue, com prevalência de
+**português europeu** mas sem descurar nunca o **inglês**.
 
 - Fork: `github.com/pedrobsm/django_dance_school`
 - Upstream original: `github.com/django-danceschool/production-template`
@@ -19,8 +19,7 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
 
 ## Estado da infraestrutura
 
-- **Plataforma alvo: Azure** (créditos disponíveis, sem restrição de custo
-  para esta PoC). Ainda por provisionar/finalizar nesta sessão.
+- **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC). Ainda por provisionar/finalizar nesta sessão.
 - Precisa de **domínio + HTTPS reais** (não só IP:porta) — é uma condição
   para a PoC, porque vamos ter utilizadores de teste reais, incluindo em
   mobile, e HTTPS é necessário para vários comportamentos de browser
@@ -35,8 +34,8 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
 
 O `production-template` oficial é pensado para Docker **Swarm**, com um
 script `docker/setup_stack.sh` que cria secrets/volumes externos e faz build
-local das imagens. Nós adaptámos para um fluxo mais simples (standalone
-Docker, sem Swarm), e isto teve as seguintes armadilhas:
+local das imagens. No primeiro teste, nós adaptámos para um fluxo mais simples (standalone
+Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguintes armadilhas:
 
 1. **`docker/web/Dockerfile` usa `python:3.10-slim-bullseye`** — Bullseye já
    está EOL, os espelhos apt falham. **Já mudámos para
@@ -102,25 +101,25 @@ Docker, sem Swarm), e isto teve as seguintes armadilhas:
 
 - **Google Drive da HOP IN**: usar o MCP do Google Drive (autenticar se
   necessário) para consultar documentos da associação (missão, identidade
-  visual navy/dourado, conteúdos para páginas do site, etc.) em vez de
+  visual navy/dourado, conteúdos para páginas do site, composição das turmas de aulas etc.) em vez de
   inventar conteúdo. Pasta raiz partilhada a partir de
   `hopindancecommunity@gmail.com`.
 
 ## Objetivo desta fase (PoC)
 
-1. Estabilizar o deploy em Azure com domínio + HTTPS reais.
+1. Estabilizar um deploy novo em Azure com domínio + HTTPS reais.
 2. Resolver a limitação de media files.
-3. Popular com dados de demonstração e aplicar branding básico da HOP IN.
-4. Criar 3-4 contas de teste com papéis diferentes (admin, instrutor/
-   voluntário, aluno) para avaliação por utilizadores reais.
+3. Gerar novos dados de demonstração mais reais, com base no documentos do Gdrive e aplicar branding básico da HOP IN.
+4. Criar 7-8 contas de teste com papéis diferentes (admin, instrutor, voluntário, 3 alunos, financeiro, gestor de eventos) para avaliação por utilizadores reais.
 5. Ficar pronto para avaliar: intuitividade, UX mobile, facilidade de
-   customização visual, facilidade de desenvolver módulos custom.
+   customização visual, facilidade em interface biligue (PT/ES), facilidade de desenvolver módulos custom (ex. integração com pagamentos MBWay.
 
 ## Preferências de trabalho
 
 - Sempre que resolveres um problema novo de compatibilidade de pacotes,
   Dockerfile, ou settings, **atualiza este ficheiro** com o que aprendeste,
-  para a próxima sessão não repetir o mesmo trabalho de diagnóstico.
+  para a próxima sessão não repetir o mesmo trabalho de diagnóstico e apaga tudo o que deixa de fazer sentido.
 - Comunica em português europeu ao resumir o que fizeste.
 - Prefere fazer commits pequenos e frequentes com mensagens claras, em vez
   de um commit gigante no fim.
+- Deixei um branch (Saved_before_azure_and_swarm) criado para salvaguardar o trabalho anterior. Se achares por bem começar de novo por por voltarmos ao docker swarm, podes fazer novo pull/fork desde o repo original.
