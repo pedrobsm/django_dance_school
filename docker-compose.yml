@@ -91,9 +91,14 @@ services:
     image: danceschool_web:latest
     deploy:
       replicas: 1
-    env_file: 
+    # NOTA: só env.default, propositadamente. env.web tem VIRTUAL_HOST/
+    # VIRTUAL_PORT/LETSENCRYPT_HOST para o nginx-proxy — o huey não serve
+    # HTTP nenhum, mas se herdar essas variáveis o nginx-proxy mete o
+    # container do huey na mesma pool de upstream do site (mesmo
+    # VIRTUAL_HOST), causando 502/503 intermitentes quando o load balancing
+    # calha nele.
+    env_file:
      - env.default
-     - env.web
     secrets:
       - postgres_url
       - django_secret_key
