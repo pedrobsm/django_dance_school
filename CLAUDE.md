@@ -207,13 +207,22 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     outra faceta do mesmo bug de serialização. O filtro
     `instructor__status__in=[rótulos]` não bate certo com nenhum valor real
     da coluna (`R`/`A`/...), logo devolve 0 resultados — página em branco,
-    sem erro no servidor. **Fix aplicado**: repor `statusChoices=[]` nas
-    instâncias afetadas via `manage.py shell` + `cache.clear()` (o plugin
-    tem `cache=True`). **Regra prática para quem editar esta página no
-    CMS**: nunca marcar checkboxes em "Limit to Instructors with Status" —
-    deixa tudo por marcar (mostra todos exceto hidden/retired,
-    automaticamente, via o `else` do `render()`). Marcar qualquer
-    combinação está confirmado como não-fiável.
+    sem erro no servidor.
+
+    **Correção a esta nota**: cheguei a recomendar aqui "deixa tudo por
+    marcar" como solução — estava errado, e o Pedro apanhou-me nisso. O
+    campo é **obrigatório** no formulário do admin (dá "This field is
+    required" com tudo por marcar, não deixa gravar), e ao mesmo tempo
+    QUALQUER seleção não-vazia batia neste bug — ou seja, não havia
+    NENHUMA configuração possível através da interface. **Fix definitivo**:
+    `custom/hopintheme/apps.py` agora faz *monkeypatch* a
+    `StaffMemberListPlugin.render` (via `AppConfig.ready()`) para
+    normalizar `instance.statusChoices` de volta para chaves reais antes do
+    filtro correr, aceitando tanto chaves como rótulos. Testado a sério:
+    com os 7 checkboxes todos marcados (o estado exato que estava
+    partido), a página passou a mostrar os 13 instrutores corretamente.
+    Agora **podes marcar os checkboxes que quiseres neste plugin, incluindo
+    todos, que funciona**.
 
 12. **`create_hopin_demo_data` criava uma segunda homepage** — a primeira
     versão do comando criava sempre uma página nova "HOP IN" e chamava
@@ -313,6 +322,26 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     outra vez, confirma sempre o resultado direto na base de dados (como
     fiz aqui) em vez de assumir que o clique funcionou — ou pede ao Pedro
     para clicar mesmo no browser dele.
+
+21. **`AppConfig.ready()` de uma app custom não corre sozinho neste
+    Django** — descoberto ao implementar o monkeypatch do item 11: defini
+    `ready()` em `custom/hopintheme/apps.py`, mas nunca disparava
+    automaticamente (confirmado: chamar a função à mão num shell funcionava
+    bem, mas não corria no arranque do processo). Causa: este projeto pina
+    `Django>=3.1.13,<3.2` (ver item 3), e a deteção automática de
+    `AppConfig` (Django usa sozinho a única classe `AppConfig` definida em
+    `apps.py`, sem precisar de mais nada) só existe a partir do **Django
+    3.2**. Sem `default_app_config` definido explicitamente em
+    `__init__.py`, o Django 3.1 usa uma `AppConfig` genérica cujo `ready()`
+    não faz nada — silenciosamente, sem erro nenhum. **Fix**: adicionar a
+    `custom/hopintheme/__init__.py`:
+    ```python
+    default_app_config = 'hopintheme.apps.HopinThemeConfig'
+    ```
+    `custom/democontent/__init__.py` tem o mesmo problema em teoria, mas
+    nunca foi detetado porque a sua `AppConfig` não faz override de
+    `ready()`. **Se criares outra app em `custom/` e precisares de
+    `ready()` correr, não te esqueças desta linha.**
 
 ## Teste vanilla (Hetzner) — comparação sem alterações HOP IN
 
