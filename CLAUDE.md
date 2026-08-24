@@ -53,10 +53,15 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
   (`SSL verify result: 0`, sem `-k`). Migrações aplicadas, `collectstatic`
   feito, superuser `admin` criado (password em
   `/opt/hopin/.superuser_credentials` na VM, `chmod 600` — muda-a depois de
-  a leres), dados de demo criados via `create_demo_data`. `setupschool`
-  (assistente interativo de nome/localização/timezone do negócio) **não foi
-  corrido** — fica para quando os dados reais da HOP IN vierem do Gdrive
-  (objetivo 3 da PoC).
+  a leres), dados de demo criados via `create_demo_data` e via
+  `create_hopin_demo_data` (dados aproximados do plano real 2025/26 +
+  workshops de Setembro, ver secção "Dados de demonstração" abaixo).
+  **`setupschool` foi corrido** (manualmente por SSH, fora desta sessão) —
+  criou as páginas standard (Home, Instructors, Calendar, FAQ, Login,
+  etc.) e por acaso destronou a homepage que o `create_hopin_demo_data`
+  tinha criado (ver item 12 da lista de armadilhas). Ainda por confirmar
+  se os valores que o `setupschool` pediu (nome da escola, timezone, etc.)
+  são os reais da HOP IN ou só placeholders de teste.
 - **Armadilha nova: manifesto do Whitenoise fica em cache no Gunicorn** — se
   corres `collectstatic` num container `web` que já estava a servir pedidos
   (gunicorn já arrancado), os workers mantêm o `staticfiles.json` antigo em
@@ -190,6 +195,23 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
     `create_hopin_demo_data.py`). Se voltares a ver a página de professores
     vazia apesar de existirem `Instructor` com `status=roster`, é este bug.
 
+12. **`create_hopin_demo_data` criava uma segunda homepage** — a primeira
+    versão do comando criava sempre uma página nova "HOP IN" e chamava
+    `set_as_homepage()`. Quando o `setupschool` foi corrido depois (na VM,
+    manualmente por SSH), criou a sua própria página "Home" e roubou-lhe o
+    estado de homepage — ficaram duas páginas parecidas com homepage, uma
+    órfã ("HOP IN", com o manifesto, já sem `is_home`) e outra ativa
+    ("Home", com o texto genérico de boas-vindas do `setupschool`).
+    **Corrigido no script** (ainda não aplicado na VM, só no repo — ver
+    abaixo): agora procura a página que já É a homepage
+    (`Page.objects.filter(is_home=True, publisher_is_draft=True).first()`)
+    e escreve o manifesto nos placeholders *dessa* página, só criando uma
+    nova se não existir nenhuma homepage. Limpa plugins antigos do
+    placeholder antes de inserir o manifesto, por isso é seguro re-correr.
+    **Nota**: a VM continua com a página "HOP IN" órfã por apagar — só
+    fazer isso (apagá-la manualmente ou re-correr o comando corrigido)
+    quando for pedido explicitamente.
+
 ## Dados de demonstração
 
 - `python3 manage.py create_demo_data` — dados genéricos (Maria Silva,
@@ -201,10 +223,11 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
   dança/níveis, instrutores (com os nomes reais mencionados no plano),
   preços (mensalidade par/solo, workshop), 7 turmas regulares e os 5
   workshops "HOP INto..." de Setembro com datas/preços/professores reais e
-  descrições retiradas do documento de workshops. Cria também 3 páginas
-  CMS: "HOP IN" (homepage, com o manifesto de marca resumido, definida
-  como homepage), "Professores" e "Turmas" (calendário público). Ambos os
-  comandos são complementares e idempotentes (podes correr os dois, e
+  descrições retiradas do documento de workshops. Cria também páginas CMS:
+  injeta o manifesto de marca resumido na homepage já existente (ver item
+  12 acima — não cria uma segunda homepage), mais "Professores" e "Turmas"
+  (calendário público). Ambos os comandos são complementares e
+  idempotentes (podes correr os dois, e
   corrê-los outra vez não duplica dados).
   Detalhes que ficaram por resolver/simplificados de propósito (PoC): o
   `setupschool` (nome/localização/timezone do negócio) continua por

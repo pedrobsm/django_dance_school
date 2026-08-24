@@ -7,8 +7,13 @@ association's brand manifesto.
 This is a PoC: names, exact levels and minor scheduling details have been
 simplified/approximated where the source material was ambiguous or still
 undecided. Safe to run more than once: uses get_or_create wherever
-practical, and CMS pages are skipped (not duplicated) if a page with the
-same title already exists.
+practical; the Professores/Turmas CMS pages are skipped (not duplicated)
+if a page with the same title already exists, and the homepage manifesto
+content is written into whichever page is already set as the site's
+homepage (e.g. one created by setupschool) rather than creating a second
+homepage-like page — re-running this command overwrites that page's
+splash_caption/content placeholders with the manifesto text again, so it
+always converges instead of piling up duplicate plugins.
 
 Complements (does not replace) create_demo_data: reuses the same Locations
 and Lead/Follow DanceRole by name, so running both is safe.
@@ -337,7 +342,7 @@ class Command(BaseCommand):
 
     def _create_cms_pages(self):
         from cms.api import add_plugin, create_page, publish_page
-        from cms.models import Page
+        from cms.models import CMSPlugin, Page
 
         this_user = User.objects.filter(is_superuser=True).first()
         if not this_user:
@@ -348,46 +353,59 @@ class Command(BaseCommand):
 
         language = 'en'  # only language configured in LANGUAGES; content itself is in Portuguese.
 
-        if not Page.objects.filter(title_set__title='HOP IN').exists():
+        # Reuse whatever page is already the homepage (e.g. created by
+        # setupschool) instead of creating a second one — only create a new
+        # page if the site genuinely has no homepage yet. This deliberately
+        # does not touch the existing page's title/menu_title/slug, only its
+        # placeholders, so it works whether "Home", "HOP IN", or anything
+        # else is already set as homepage.
+        home_page = Page.objects.filter(is_home=True, publisher_is_draft=True).first()
+        if not home_page:
             home_page = create_page(
                 'HOP IN', 'cms/frontpage.html', language,
                 menu_title='Inicio', in_navigation=True, published=True,
             )
-            caption_placeholder = home_page.placeholders.get(slot='splash_caption')
-            add_plugin(
-                caption_placeholder, 'TextPlugin', language,
-                body='<p class="lead text-white text-center">Aprende. Experimenta. Danca.</p>',
-            )
-            content_placeholder = home_page.placeholders.get(slot='content')
-            add_plugin(
-                content_placeholder, 'TextPlugin', language,
-                body=(
-                    '<p><strong>Mais do que aprender a dancar.</strong></p>'
-                    '<p>A HOP IN e uma comunidade de swing e blues no Porto. Queremos '
-                    'construir mais do que um lugar para aprender a dancar: um lugar onde '
-                    'se descobre o swing, se cresce ao proprio ritmo, se fazem amizades e '
-                    'se encontra uma comunidade da qual apetece fazer parte.</p>'
-                    '<h2>Para quem esta a comecar... e para quem quer ir mais longe</h2>'
-                    '<p>A HOP IN nao e so a porta de entrada para quem nunca dancou - e '
-                    'tambem espaco para quem ja danca, quer aprofundar, experimentar coisas '
-                    'novas e descobrir ate onde pode levar a sua danca. <em>Descobrir - '
-                    'Aprender - Experimentar - Evoluir - Participar</em> - cada pessoa entra '
-                    'num ponto diferente e escolhe o seu proximo passo.</p>'
-                    '<h2>Escola + Eventos</h2>'
-                    '<p>A escola cria oportunidades para <strong>aprender e evoluir</strong> '
-                    '- aulas, workshops, treino, musicalidade. A associacao cria '
-                    'oportunidades para <strong>participar</strong> - sociais, jams, '
-                    'festivais, voluntariado. E nesta combinacao que se encontra a HOP '
-                    'IN.</p>'
-                    '<p class="text-center"><strong>Warm &middot; Welcoming &middot; '
-                    'Playful &middot; Friendly &middot; Curious</strong></p>'
-                ),
-            )
-            publish_page(home_page, this_user, language)
             home_page.set_as_homepage()
-            self.stdout.write('Pagina inicial (manifesto) criada.')
-        else:
-            self.stdout.write('Pagina inicial ja existia, nao foi recriada.')
+
+        manifesto_body = (
+            '<p><strong>Mais do que aprender a dancar.</strong></p>'
+            '<p>A HOP IN e uma comunidade de swing e blues no Porto. Queremos '
+            'construir mais do que um lugar para aprender a dancar: um lugar onde '
+            'se descobre o swing, se cresce ao proprio ritmo, se fazem amizades e '
+            'se encontra uma comunidade da qual apetece fazer parte.</p>'
+            '<h2>Para quem esta a comecar... e para quem quer ir mais longe</h2>'
+            '<p>A HOP IN nao e so a porta de entrada para quem nunca dancou - e '
+            'tambem espaco para quem ja danca, quer aprofundar, experimentar coisas '
+            'novas e descobrir ate onde pode levar a sua danca. <em>Descobrir - '
+            'Aprender - Experimentar - Evoluir - Participar</em> - cada pessoa entra '
+            'num ponto diferente e escolhe o seu proximo passo.</p>'
+            '<h2>Escola + Eventos</h2>'
+            '<p>A escola cria oportunidades para <strong>aprender e evoluir</strong> '
+            '- aulas, workshops, treino, musicalidade. A associacao cria '
+            'oportunidades para <strong>participar</strong> - sociais, jams, '
+            'festivais, voluntariado. E nesta combinacao que se encontra a HOP '
+            'IN.</p>'
+            '<p class="text-center"><strong>Warm &middot; Welcoming &middot; '
+            'Playful &middot; Friendly &middot; Curious</strong></p>'
+        )
+        caption_body = '<p class="lead text-white text-center">Aprende. Experimenta. Danca.</p>'
+
+        # Placeholders on the reused page depend on its template; only
+        # splash_caption exists on cms/frontpage.html, 'content' exists on
+        # both frontpage.html and home.html.
+        for slot, body in [('splash_caption', caption_body), ('content', manifesto_body)]:
+            placeholder = home_page.placeholders.filter(slot=slot).first()
+            if not placeholder:
+                continue
+            # Clear whatever is already there (default setupschool "Welcome"
+            # text, or our own content from a previous run) so re-running
+            # this command always converges on the manifesto, without piling
+            # up duplicate plugins in the same placeholder.
+            CMSPlugin.objects.filter(placeholder=placeholder, language=language).delete()
+            add_plugin(placeholder, 'TextPlugin', language, body=body)
+
+        publish_page(home_page, this_user, language)
+        self.stdout.write('Pagina inicial (manifesto) atualizada.')
 
         if not Page.objects.filter(title_set__title='Professores').exists():
             instructor_page = create_page(
