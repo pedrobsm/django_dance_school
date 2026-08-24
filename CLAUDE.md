@@ -45,9 +45,17 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
   `hopinadmin`, chave em `C:\Users\pedro\.ssh\hopin_vm_key` (neste PC, apesar
   de o `apply` ter corrido noutro). SSH confirmado a funcionar a partir
   desta máquina. Estado: Docker ativo, disco `/data` montado, swap 2GB, ufw
-  + fail2ban ativos, repo em `/opt/hopin/app`. **Passo 6 do
-  `infra/terraform/README.md` (swarm init / secrets / build / migrações) 
-  ainda por fazer.**
+  + fail2ban ativos, repo em `/opt/hopin/app`.
+- **HTTPS confirmado a funcionar** (2026-08-24): swarm inicializado,
+  volumes/secrets criados, stack completa (web+huey+postgres+redis+nginx+
+  letsencrypt-companion) no ar. Certificado de produção real emitido pela
+  Let's Encrypt para `20-126-64-224.sslip.io` (hostname automático, ver
+  `infra/terraform/main.tf`), validado externamente (`SSL verify result: 0`,
+  sem `-k`). **Falta**: migrações (`python3 manage.py migrate`),
+  `collectstatic`, `createsuperuser`, `setupschool` — a app ainda devolve
+  500 em todos os pedidos porque a BD está vazia (`relation
+  cms_urlconfrevision does not exist`). Isso é o resto do Passo 6 do
+  `infra/terraform/README.md`.
 - **cloud-init falhou no primeiro `apply` desta VM** (bug de parsing YAML
   no `runcmd:` + race condition no anexar do disco de dados) — já corrigido
   em `infra/terraform/cloud-init.yaml.tpl` e remediado manualmente por SSH
@@ -122,6 +130,37 @@ Docker, sem Swarm), mas vamos voltar ao swarm pois esta opção teve as seguinte
    autenticado como `pedrobsm`) tem escrita real neste repositório. A
    integração usada no chat do Claude.ai é que só tinha leitura (403 em
    `create_or_update_file`); isso não se aplica aqui.
+
+8. **`docker/nginx/nginx.tmpl` não tinha location para
+   `/.well-known/acme-challenge/`** — todo o tráfego HTTP (incluindo o
+   desafio ACME) caía no `location /` e ia proxy para o Django, que devolve
+   500 se as migrações não estiverem feitas (e 404 normal noutros casos) em
+   vez de servir o ficheiro do desafio a partir do volume `html` partilhado.
+   Isto bloqueava a emissão de certificado Let's Encrypt **sempre**,
+   independentemente do domínio. **Corrigido**: adicionado
+   `location /.well-known/acme-challenge/ { root /usr/share/nginx/html; ... }`
+   nos dois server blocks de porta 80 (com e sem redirect para HTTPS), antes
+   do `location /`. Confirmado a funcionar (certificado real de produção
+   emitido para `20-126-64-224.sslip.io` na VM `vm-hopin-poc`).
+
+9. **`huey` não deve incluir `env.web`** no `docker-compose.yml` — esse
+   ficheiro tem `VIRTUAL_HOST`/`VIRTUAL_PORT`/`LETSENCRYPT_HOST`, variáveis
+   que o nginx-proxy usa para descobrir containers a colocar no upstream. O
+   huey não serve HTTP nenhum, mas ao herdar essas variáveis o nginx-proxy
+   metia-o na mesma pool de upstream do `web`, causando 502/503
+   intermitentes sempre que o load balancing calhava no huey. **Corrigido**:
+   huey agora só carrega `env.default`.
+
+   **Lembrete para o próximo passo (migrações)**: depois de correr
+   `python3 manage.py migrate` dentro do container `web`, força um
+   redeploy/restart do `nginx`/`letsencrypt-companion` não é necessário —
+   só o `web` deixa de dar 500. Mas se voltares a mexer no
+   `docker/nginx/nginx.tmpl` ou no `docker-compose.yml`, lembra-te que o
+   Swarm **não** deteta sozinho que uma imagem local com a mesma tag
+   (`:latest`) mudou — depois de `docker build`, usa
+   `docker service update --force <serviço>` para forçar o redeploy da
+   tarefa (ou volta a `docker stack deploy`, que também funciona se algum
+   valor do spec do serviço mudou, como env vars).
 
 ## Acesso a contexto adicional
 
