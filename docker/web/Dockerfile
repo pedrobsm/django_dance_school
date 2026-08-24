@@ -28,3 +28,12 @@ RUN apt -y autoremove
 
 # Prepare
 COPY ./school/ /data/web/school/
+
+# Traduções do projeto (LOCALE_PATHS aponta para /data/web/locale). Os .mo
+# são compilados aqui em vez de commitados, por isso o .po é a única fonte
+# de verdade no repositório. Usamos msgfmt diretamente e não
+# `manage.py compilemessages` porque este último carrega o settings.py
+# completo, que precisa de DATABASE_URL/SECRET_KEY — coisas que não existem
+# durante o build da imagem.
+COPY ./locale/ /data/web/locale/
+RUN find /data/web/locale -name '*.po' -execdir msgfmt -o django.mo {} \;

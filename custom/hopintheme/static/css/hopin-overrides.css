@@ -117,3 +117,8 @@ footer.bg-dark a:hover {
 .splash-header {
   background-color: var(--hopin-dark);
 }
+
+/* Seletor de idioma no navbar. */
+.dropdown-menu .dropdown-item[hreflang] {
+  cursor: pointer;
+}
