@@ -57,3 +57,33 @@
   --default-button-bg: #2c2118 !important;
   --default-button-hover-bg: #3a2c20 !important;
 }
+
+/*
+ * A barra da toolbar do próprio django-CMS (o "django CMS | Apps Events
+ * Staff..." no topo — diferente do #header do admin acima, é um
+ * componente à parte, de cms.base.css, não de djangocms_admin_style).
+ *
+ * Não é configurável por nenhuma definição do Django/django-CMS — só
+ * mesmo CSS. E é mesmo um bug de compatibilidade entre pacotes, não só
+ * "não está na nossa paleta": cms.base.css define
+ * ".cms-toolbar{background-color:#fff}" fixo, sem nenhuma lógica de
+ * modo escuro — mas não define "color" próprio para o texto lá dentro,
+ * por isso esse texto HERDA a cor do body. Em modo claro isso dá texto
+ * escuro sobre fundo branco (legível, por acidente). Mas o
+ * djangocms_admin_style põe o body a cinza quase-branco (--body-fg)
+ * quando o browser prefere dark mode — e a toolbar continua sempre
+ * branca. Resultado: texto quase-branco sobre fundo branco, ilegível.
+ * Como o fundo da toolbar nunca muda, fixamos o texto a escuro sempre,
+ * em vez de o deixar herdar algo que pode mudar com o tema do SO.
+ */
+.cms-toolbar,
+.cms-toolbar a,
+.cms-toolbar-item-navigation > li > a span,
+.cms-toolbar-item-logo a span {
+  color: #2c2118 !important;
+}
+
+.cms-toolbar-item-navigation > li > a:hover span,
+.cms-toolbar-item-navigation-active > a span {
+  color: #d9663a !important;
+}
