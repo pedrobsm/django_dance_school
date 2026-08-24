@@ -46,16 +46,25 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
   de o `apply` ter corrido noutro). SSH confirmado a funcionar a partir
   desta máquina. Estado: Docker ativo, disco `/data` montado, swap 2GB, ufw
   + fail2ban ativos, repo em `/opt/hopin/app`.
-- **HTTPS confirmado a funcionar** (2026-08-24): swarm inicializado,
-  volumes/secrets criados, stack completa (web+huey+postgres+redis+nginx+
-  letsencrypt-companion) no ar. Certificado de produção real emitido pela
-  Let's Encrypt para `20-126-64-224.sslip.io` (hostname automático, ver
-  `infra/terraform/main.tf`), validado externamente (`SSL verify result: 0`,
-  sem `-k`). **Falta**: migrações (`python3 manage.py migrate`),
-  `collectstatic`, `createsuperuser`, `setupschool` — a app ainda devolve
-  500 em todos os pedidos porque a BD está vazia (`relation
-  cms_urlconfrevision does not exist`). Isso é o resto do Passo 6 do
-  `infra/terraform/README.md`.
+- **Site em produção e funcional** (2026-08-24):
+  `https://20-126-64-224.sslip.io/` responde 200 (django CMS welcome page),
+  `/admin/login/` responde 200 com CSS a carregar (Django site admin).
+  Certificado de produção real da Let's Encrypt, validado externamente
+  (`SSL verify result: 0`, sem `-k`). Migrações aplicadas, `collectstatic`
+  feito, superuser `admin` criado (password em
+  `/opt/hopin/.superuser_credentials` na VM, `chmod 600` — muda-a depois de
+  a leres), dados de demo criados via `create_demo_data`. `setupschool`
+  (assistente interativo de nome/localização/timezone do negócio) **não foi
+  corrido** — fica para quando os dados reais da HOP IN vierem do Gdrive
+  (objetivo 3 da PoC).
+- **Armadilha nova: manifesto do Whitenoise fica em cache no Gunicorn** — se
+  corres `collectstatic` num container `web` que já estava a servir pedidos
+  (gunicorn já arrancado), os workers mantêm o `staticfiles.json` antigo em
+  memória e continuam a dar `ValueError: Missing staticfiles manifest
+  entry` mesmo que o ficheiro e a entrada já existam em disco. **Fix**:
+  depois de `collectstatic`, força sempre `docker service update --force
+  danceschool_web` (ou equivalente) para os workers arrancarem de novo e
+  lerem o manifesto atualizado.
 - **cloud-init falhou no primeiro `apply` desta VM** (bug de parsing YAML
   no `runcmd:` + race condition no anexar do disco de dados) — já corrigido
   em `infra/terraform/cloud-init.yaml.tpl` e remediado manualmente por SSH
