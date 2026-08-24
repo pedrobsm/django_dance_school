@@ -1,0 +1,117 @@
+{% load sekizai_tags static i18n tz %}
+{% get_current_timezone as TIME_ZONE %}
+{% get_current_language as LANGUAGE_CODE %}
+
+{% comment %}
+  Override de danceschool/core/templates/core/public_calendar.html.
+
+  Única alteração face ao original: os formatos de hora.
+
+  O calendário é desenhado no browser pelo FullCalendar/moment.js, por isso
+  o LANGUAGE_CODE/USE_L10N do Django não lhe chegam — só afetam o que é
+  renderizado no servidor. O original não define formato nenhum e não passa
+  locale, e o FullCalendar assume inglês, que usa relógio de 12 horas
+  (AM/PM). O popup do evento era ainda mais explícito: tinha
+  'MMM Do h:mm A' escrito à mão no template.
+
+  Não dá para resolver com `locale: 'pt'` porque o danceschool só
+  distribui o fullcalendar.min.js e o moment.min.js base — os ficheiros de
+  locale (locale-all.js / moment locales) não vêm no pacote. Por isso
+  definimos os formatos explicitamente, o que resolve o essencial (24h) sem
+  acrescentar dependências vendorizadas.
+
+  Nota: por não haver dados de locale, os nomes dos meses do moment ficam
+  em inglês. Contornamos isso em PT usando data numérica (DD/MM/AAAA), que
+  é a convenção portuguesa e evita o problema.
+{% endcomment %}
+
+<div id="calendarbox">&nbsp;</div>
+<!-- Modal -->
+
+<div aria-labelledby="eventDetails" class="modal fade my-5" id="eventContent" role="dialog" tabindex="-1" title="{% trans 'Event Details' %}">
+	<div class="modal-dialog" role="document">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button aria-label="{% trans 'Close' %}" class="close" data-dismiss="modal" type="button"><span aria-hidden="true">&times;</span></button>
+				<h3 class="modal-title" id="eventTitle">&nbsp;</h3>
+			</div>
+
+			<div class="modal-body">
+				<dl>
+					<dt>{% trans "Start" %}:</dt>
+					<dd id="startTime">&nbsp;</dd>
+					<dt>{% trans "End" %}:</dt>
+					<dd id="endTime">&nbsp;</dd>
+				</dl>
+				<div id="eventInfo">&nbsp;</div>
+			</div>
+			<div class="modal-footer"><a class="btn btn-secondary" href="" id="eventLink" target="_blank" type="button">{% trans "Read More" %}</a><button class="btn btn-secondary" data-dismiss="modal" id="closeLink" type="button">{% trans "Close" %}</button></div>
+		</div>
+	</div>
+</div>
+
+{% addtoblock "css" %}
+	<link rel='stylesheet' href='{% static 'fullcalendar/fullcalendar.min.css' %}' />
+{% endaddtoblock %}
+{% addtoblock "css" %}
+	<style media="screen" type="text/css">
+	.fc-day-grid-event > .fc-content {
+	    white-space: normal;
+	}
+
+	/* basic positioning */
+	.legend { list-style: none; padding: 25px 0;}
+	.legend li { float: left; margin-right: 20px; }
+	.legend span { border: 1px solid #ccc; float: left; width: 12px; height: 12px; margin: 2px 10px 2px 2px; }
+	</style>
+{% endaddtoblock %}
+{% addtoblock "js" %}
+	<script src='{% static 'jquery-ui/jquery-ui.min.js' %}'></script>
+{% endaddtoblock %}
+{% addtoblock "js" %}
+	<script src='{% static 'moment/moment.min.js' %}'></script>
+{% endaddtoblock %}
+{% addtoblock "js" %}
+	<script src='{% static 'fullcalendar/fullcalendar.min.js' %}'></script>
+{% endaddtoblock %}
+{% addtoblock "js" %}
+	<script type="text/javascript">
+	$(document).ready(function() {
+
+	    // page is now ready, initialize the calendar...
+
+	    $('#calendarbox').fullCalendar({
+	        // put your options and callbacks here
+	        events: "{% url 'jsonCalendarFeed' %}",
+	        timezone: "{{ TIME_ZONE }}",
+	        height: "auto",
+	        eventTextColor: '#ffffff',
+	        eventColor: '#477087',
+	        aspectRatio: 1,
+	        // Relógio de 24 horas: 'H:mm' em vez do 'h(:mm)a' que o
+	        // FullCalendar assume por omissão no locale inglês.
+	        timeFormat: 'H:mm',
+	        slotLabelFormat: 'H:mm',
+	        eventRender: function (event, element) {
+	            element.attr('href', 'javascript:void(0);');
+	            element.click(function() {
+	                {% if LANGUAGE_CODE == 'pt' %}
+	                var hopinDateFormat = 'DD/MM/YYYY HH:mm';
+	                {% else %}
+	                var hopinDateFormat = 'D MMM YYYY, HH:mm';
+	                {% endif %}
+	                $("#startTime").html(moment(event.start).format(hopinDateFormat));
+	                $("#endTime").html(moment(event.end).format(hopinDateFormat));
+	                $("#eventTitle").html(event.title);
+	                $("#eventInfo").html(event.description);
+	                $("#eventLink").attr('href', event.url);
+	                $("#eventContent").modal();
+	            });
+	        },
+	    });
+	    $("#closeLink").click(function() {
+	        $("#eventContent").hide();
+	    });
+	});
+	</script>
+{% endaddtoblock %}
