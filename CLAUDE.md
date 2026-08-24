@@ -265,12 +265,37 @@ ficou guardada como `danceschool_web:pre-i18n` e há um dump da BD em
   projeto herdava `LANGUAGES = [('en', 'English')]` do
   `danceschool.default_settings` — i18n estava meio ligado (`USE_I18N` e
   `LocaleMiddleware` já lá estavam) mas com um só idioma.
-- **URLs**: as rotas públicas estão dentro de `i18n_patterns` → `/pt/...` e
-  `/en/...`; `/` redireciona conforme o `Accept-Language`. O `admin/` e as
-  vistas `i18n/` ficam **sem** prefixo de propósito. Nota: isto também
-  prefixa o `sitemap.xml` e os URLs do django-filer que vêm dentro de
-  `danceschool.urls` — não é o convencional para o sitemap, mas são todos
-  resolvidos por `reverse()`, por isso funcionam.
+- **URLs**: tudo dentro de `i18n_patterns` → `/pt/...` e `/en/...`,
+  **incluindo o `admin/`**; `/` redireciona conforme o `Accept-Language`.
+  Só as vistas `i18n/` (set_language) e o `/favicon.ico` ficam sem prefixo.
+  Nota: isto também prefixa o `sitemap.xml` e os URLs do django-filer que
+  vêm dentro de `danceschool.urls` — não é o convencional para o sitemap,
+  mas são todos resolvidos por `reverse()`, por isso funcionam.
+
+16. **O `admin/` TEM de estar dentro do `i18n_patterns`** — na primeira
+    versão deixei-o fora, a raciocinar que o admin não precisa de prefixo
+    de idioma. Errado: é o que o template oficial de projeto do django-cms
+    faz, e a barra de ferramentas do CMS constrói links de admin
+    **relativos à página atual**, ou seja com prefixo. Com o admin fora,
+    esses links saíam `/en/admin/core/staffmember/` e davam **404**
+    (apanhado nos logs do nginx, não nos do Django — o 404 nem chega a
+    gerar traceback). `/admin/` sem prefixo continua a funcionar via
+    redirect do `LocaleMiddleware`. Efeito lateral bom: o idioma do admin
+    passa a vir do URL em vez do cookie, o que o torna previsível.
+
+17. **`/favicon.ico` precisa de rota própria** — o browser pede-o na raiz
+    por sua conta; sem rota, cai no `i18n_patterns`, ganha prefixo e acaba
+    em `/en/favicon.ico/` → 404. Resolvido com um `RedirectView` para o
+    ficheiro em `static/`.
+
+18. **Onde procurar erros**: os 404 de routing **não** aparecem nos logs do
+    Django (`docker service logs danceschool_web`) — só nos do nginx
+    (`docker service logs danceschool_nginx`). Ao investigar "links que não
+    funcionam", começa sempre pela distribuição de status do nginx:
+    ```bash
+    docker service logs danceschool_nginx --since 2h 2>&1 \
+      | grep sslip.io | grep -oE '" [0-9]{3} ' | sort | uniq -c | sort -rn
+    ```
 - **Slugs por idioma**: `/pt/calendario/` e `/en/calendar/` são a mesma
   página. Os slugs **ingleses** das páginas criadas pelo
   `create_hopin_demo_data` ficaram em português (`professores`, `turmas`) —
