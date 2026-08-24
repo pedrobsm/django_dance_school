@@ -2,24 +2,118 @@
  * Overrides para o tema danceschool.themes.business_frontpage.
  *
  * Este ficheiro é carregado DEPOIS de business-frontpage.css (ver
- * custom/hopintheme/templates/cms/home.html), por isso qualquer regra aqui
- * ganha ao original em caso de empate de especificidade.
+ * custom/hopintheme/templates/cms/home.html) — mas o bootstrap.min.css
+ * vendorizado carrega DEPOIS deste ficheiro (ordem real dos <link> na
+ * página), por isso as regras que têm de vencer classes do Bootstrap
+ * (.btn-primary, .bg-dark, etc.) usam !important propositadamente. Sem
+ * isso, o Bootstrap ganhava sempre por carregar mais tarde.
  *
- * NOTA: a HOP IN ainda não tem uma paleta de cores oficial definida (ver
- * CLAUDE.md, secção "Acesso a contexto adicional") — por isso este ficheiro
- * só corrige um bug de legibilidade real, não aplica uma paleta de marca.
- * Quando a paleta oficial existir, os valores de cor entram aqui.
+ * PALETA PLACEHOLDER — a HOP IN ainda não tem uma paleta de cores oficial
+ * definida (ver CLAUDE.md, secção "Acesso a contexto adicional"; conferido
+ * no Drive em 2026-08-24). Os valores abaixo são só para a PoC não ficar
+ * feia enquanto isso não sai, inspirados na direção que já existe no
+ * documento "Brand Compass": quente, colorida, expressiva, com uma
+ * referência vintage à era do swing/jazz — o oposto de uma paleta
+ * corporativa tipo navy/cinza. Quando a paleta oficial chegar, troca só os
+ * valores das variáveis abaixo.
  */
 
-/* Bug: o footer do tema usa "bg-dark" mas nunca ganha uma cor de texto
-   clara (a regra .footer{color:#fff} de business-frontpage.css não bate
-   certo com a classe real do elemento) — texto escuro sobre fundo quase
-   preto, ilegível. */
-footer.bg-dark,
-footer.bg-dark a {
-  color: #fff;
+:root {
+  --hopin-primary: #d9663a;      /* terracota quente — botões, links, destaques */
+  --hopin-primary-dark: #b34f2a; /* hover/active do primary */
+  --hopin-accent: #e8ab1f;       /* dourado mostarda — acentos pontuais, era do jazz */
+  --hopin-dark: #2c2118;         /* castanho quase-preto (não preto puro) — navbar/footer */
+  --hopin-dark-alt: #3a2c20;     /* variante um pouco mais clara, para hover em áreas escuras */
+  --hopin-cream: #fdf6ec;        /* creme quente — fundo da página, em vez de branco frio */
+  --hopin-text: #2c2118;         /* texto principal, tom quente em vez de preto puro */
 }
 
+/* Fundo/texto gerais: creme quente em vez de branco frio, texto castanho
+   quente em vez de preto puro. */
+body {
+  background-color: var(--hopin-cream);
+  color: var(--hopin-text);
+}
+
+/* Links e primary do Bootstrap (botões, badges, texto) */
+a {
+  color: var(--hopin-primary);
+}
+a:hover {
+  color: var(--hopin-primary-dark);
+}
+
+.btn-primary {
+  background-color: var(--hopin-primary) !important;
+  border-color: var(--hopin-primary) !important;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--hopin-primary-dark) !important;
+  border-color: var(--hopin-primary-dark) !important;
+}
+.btn-outline-primary {
+  color: var(--hopin-primary) !important;
+  border-color: var(--hopin-primary) !important;
+}
+.btn-outline-primary:hover {
+  background-color: var(--hopin-primary) !important;
+  border-color: var(--hopin-primary) !important;
+}
+
+.text-primary {
+  color: var(--hopin-primary) !important;
+}
+.bg-primary {
+  background-color: var(--hopin-primary) !important;
+}
+.badge-primary {
+  background-color: var(--hopin-primary) !important;
+}
+
+/* Acento secundário (dourado) — para quem quiser usar .btn-secondary /
+   .badge-secondary em plugins do CMS */
+.btn-secondary {
+  background-color: var(--hopin-accent) !important;
+  border-color: var(--hopin-accent) !important;
+  color: var(--hopin-dark) !important;
+}
+.badge-secondary {
+  background-color: var(--hopin-accent) !important;
+  color: var(--hopin-dark) !important;
+}
+
+/* Navbar e footer: castanho quente em vez do bg-dark genérico do
+   Bootstrap (que por defeito é quase preto e frio). */
+.navbar.bg-dark,
+footer.bg-dark {
+  background-color: var(--hopin-dark) !important;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover,
+.navbar-dark .navbar-nav .nav-link:focus {
+  color: var(--hopin-accent) !important;
+}
+
+.navbar-dark .navbar-brand {
+  font-weight: 600;
+}
+
+/* Bug corrigido: o footer do tema tem bg-dark mas nunca ganhava cor de
+   texto clara (a regra .footer{color:#fff} de business-frontpage.css não
+   bate certo com a classe real do elemento, que é só "bg-dark"). Sem isto
+   ficava texto escuro sobre fundo escuro, ilegível. */
+footer.bg-dark,
+footer.bg-dark a {
+  color: #fff !important;
+}
 footer.bg-dark a:hover {
-  color: #f8f9fa;
+  color: var(--hopin-accent) !important;
+}
+
+/* Cabeçalho de splash (imagem de fundo na home) — garantir contraste do
+   título mesmo sem imagem de fundo definida ainda. */
+.splash-header {
+  background-color: var(--hopin-dark);
 }
