@@ -26,26 +26,37 @@ def switch_language_url(context, lang_code):
 
     current = request.get_full_path()
 
-    # 1) translate_url resolve o URL atual e volta a gera-lo no idioma de
-    #    destino. E a melhor opcao quando funciona, porque preserva URLs
-    #    profundos (ex.: o detalhe de uma noticia dentro de um apphook).
-    url = translate_url(current, lang_code)
-    if url != current:
-        return url
-
-    # 2) Se nao mudou nada, nao conseguiu resolver. O caso tipico e uma
-    #    pagina CMS simples: o translate_url reverte para cms.views.details
-    #    com o *mesmo* slug, mas os slugs mudam de idioma para idioma
-    #    (/en/calendar/ vs /pt/calendario/). A propria pagina sabe o seu URL
-    #    em cada idioma, prefixo de idioma incluido.
+    # 1) Se estamos exatamente numa pagina CMS, e a pagina que sabe o seu
+    #    proprio URL em cada idioma — os slugs mudam de idioma para idioma
+    #    (/en/calendar/ vs /pt/calendario/).
+    #
+    #    Isto tem de vir ANTES do translate_url: o translate_url resolve
+    #    /en/calendar/ para cms.views.details(slug='calendar') e volta a
+    #    reverter isso no prefixo pt, produzindo /pt/calendar/ — um URL
+    #    diferente do atual (logo, aparentemente bem sucedido) mas com o
+    #    slug errado. O django-cms ate o salva com um 302, mas o link fica
+    #    incorreto e custa um redirect a mais.
+    #
+    #    So o fazemos quando o pedido e a propria pagina. Em URLs mais
+    #    profundos servidos por um apphook (ex.: o detalhe de uma noticia),
+    #    current_page e a pagina do apphook, e usar o URL dela mandaria o
+    #    utilizador para o indice em vez do artigo — nesse caso o
+    #    translate_url faz melhor trabalho.
     page = getattr(request, 'current_page', None)
     if page is not None:
         try:
-            page_url = page.get_absolute_url(language=lang_code)
+            here = page.get_absolute_url()
+            if here and request.path == here:
+                target = page.get_absolute_url(language=lang_code)
+                if target:
+                    return target
         except Exception:  # noqa: BLE001 - nunca rebentar o navbar por isto
-            page_url = None
-        if page_url:
-            return page_url
+            pass
+
+    # 2) Vistas normais (danceschool) e URLs profundos de apphooks.
+    url = translate_url(current, lang_code)
+    if url != current:
+        return url
 
     # 3) Ultimo recurso: trocar o prefixo a mao, para o link pelo menos nao
     #    ficar a apontar ao idioma em que ja estamos.
