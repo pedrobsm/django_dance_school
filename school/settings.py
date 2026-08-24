@@ -367,16 +367,6 @@ HUEY = RedisHuey('danceschool', connection_pool=pool)
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
 
-# Teste vanilla (Hetzner): sobrepõe bootstrap/css/bootstrap.min.css com o
-# build Bootwatch Cosmo. FileSystemFinder (STATICFILES_DIRS) tem prioridade
-# sobre AppDirectoriesFinder, por isso isto "ganha" ao bootstrap.min.css
-# nativo do tema sem tocar em nenhum template. Para reverter: remove este
-# bloco (ou git revert a este commit), reconstrói a imagem web e corre
-# collectstatic + restart do serviço.
-STATICFILES_DIRS = [
-    os.path.join(os.path.dirname(PROJECT_ROOT), 'custom', 'static_overrides'),
-]
-
 # Simplified static file serving.
 # https://warehouse.python.org/project/whitenoise/
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
