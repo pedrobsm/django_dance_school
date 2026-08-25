@@ -463,6 +463,36 @@ ficou guardada como `danceschool_web:pre-i18n` e há um dump da BD em
     Em PT usa-se data numérica (`DD/MM/AAAA`) de propósito: além de ser a
     convenção portuguesa, evita o moment cair em nomes de meses ingleses
     por falta de dados de locale.
+
+20. **Páginas com "url overwrite" — `create_title()` NÃO o copia** — esta
+    foi das mais difíceis de ver. O `setupschool` cria as páginas
+    **Register, Login, Profile e Logout** como cascas vazias que só existem
+    para aparecer no menu: o conteúdo real vem da app do danceschool, e a
+    ligação é feita com um *url overwrite* no `Title`
+    (`has_url_overwrite=True`, `path` reescrito para `register`,
+    `accounts/login`, `accounts/profile`, `accounts/logout`).
+
+    Ao criar a tradução PT com `cms.api.create_title()`, esse overwrite
+    **não é copiado** — o título PT fica com um slug normal e a entrada de
+    menu passa a apontar para a página CMS vazia. Sintoma: `/pt/inscricoes/`
+    a renderizar uma página em branco (4,5 KB de layout, zero conteúdo)
+    enquanto `/en/register/` mostrava o formulário completo (63 KB).
+    Enganador porque parecia "só o PT é que está partido", quando na
+    verdade o EN funcionava por acaso — o slug inglês coincidia com o path
+    reescrito.
+
+    **Corrigido** no `translate_cms_pages` (passo 2b): propaga
+    `has_url_overwrite` e `path` do título de origem. Os paths reescritos
+    não têm idioma lá dentro e o `danceschool.urls` está dentro do
+    `i18n_patterns`, por isso o mesmo path serve os dois prefixos.
+
+    **Como despistar isto**: compara o *tamanho* das respostas EN vs PT
+    página a página — uma diferença de 10x denuncia logo o problema, que de
+    outra forma não dá erro nenhum:
+    ```bash
+    curl -s -o /dev/null -w '%{size_download}\n' https://<host>/en/<slug>/
+    curl -s -o /dev/null -w '%{size_download}\n' https://<host>/pt/<slug>/
+    ```
 - **Slugs por idioma**: `/pt/calendario/` e `/en/calendar/` são a mesma
   página. Os slugs **ingleses** das páginas criadas pelo
   `create_hopin_demo_data` ficaram em português (`professores`, `turmas`) —
