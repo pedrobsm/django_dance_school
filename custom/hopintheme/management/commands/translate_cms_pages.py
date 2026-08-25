@@ -194,6 +194,34 @@ class Command(BaseCommand):
                 updated += 1
                 self.stdout.write('PT atualizado: %s' % pt_title)
 
+            # --- 2b. Propagar URL overwrite do titulo de origem ---
+            # O setupschool cria as paginas Register/Login/Profile/Logout com
+            # "url overwrite": a pagina CMS em si esta vazia e serve so para
+            # aparecer no menu, mas o path e reescrito para a URL real da app
+            # do danceschool (register, accounts/login, accounts/profile,
+            # accounts/logout).
+            #
+            # O create_title() NAO copia esse overwrite. Sem isto, o titulo PT
+            # fica com um slug normal e a entrada de menu passa a apontar para
+            # a pagina CMS vazia em vez da app — foi exatamente o que
+            # aconteceu com /pt/inscricoes/, que aparecia em branco.
+            #
+            # Os paths reescritos nao tem idioma nenhum lá dentro e o
+            # danceschool.urls esta dentro do i18n_patterns, por isso o mesmo
+            # path funciona nos dois prefixos (/pt/accounts/login/ e
+            # /en/accounts/login/ respondem os dois).
+            dst = Title.objects.filter(page=page, language=DST_LANG).first()
+            if dst and src.has_url_overwrite and (
+                not dst.has_url_overwrite or dst.path != src.path
+            ):
+                dst.path = src.path
+                dst.has_url_overwrite = True
+                dst.save()
+                updated += 1
+                self.stdout.write(self.style.SUCCESS(
+                    'PT url overwrite: %s -> /%s/' % (dst.slug, src.path)
+                ))
+
             # --- 3. Copiar conteudo dos placeholders EN -> PT ---
             # A homepage fica de fora: o conteudo dela e escrito
             # explicitamente no passo 4. Copiar aqui so poria no lado PT o
