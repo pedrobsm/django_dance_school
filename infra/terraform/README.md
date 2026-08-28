@@ -162,6 +162,67 @@ Dentro do limite de 80€/mês. Sobra margem para subir para
 `Standard_B2ms` (4 vCPU/8GB, ~60€/mês) se a stack completa (Postgres + Redis
 + Django + Huey + Nginx) sentir falta de RAM.
 
+## Segunda VM (ex: migração CMS 5) sem tocar na `vm-hopin-poc` — workspace dedicado
+
+Todos os recursos deste módulo são nomeados a partir de `var.environment`
+(`rg-hopin-${environment}`, `vm-hopin-${environment}`, etc.), mas o
+**endereço** de cada recurso no state do Terraform (`azurerm_resource_group.this`,
+`azurerm_linux_virtual_machine.this`, ...) não depende dessa variável. Isto
+quer dizer que se só mudares `environment` no `terraform.tfvars` e correres
+`terraform apply` **no mesmo workspace/state** que já gere a `vm-hopin-poc`,
+o Terraform interpreta isso como "renomear os recursos existentes" — ou seja,
+**destrói a `vm-hopin-poc` e recria-a com o nome novo**. É exatamente o
+cenário que o aviso no fim deste README pede para evitar.
+
+A forma segura de ter uma segunda VM em paralelo, a partir do **mesmo**
+diretório `infra/terraform/`, é um [Terraform workspace](https://developer.hashicorp.com/terraform/language/state/workspaces)
+dedicado — cada workspace tem o seu próprio ficheiro de state
+(`terraform.tfstate.d/<nome>/terraform.tfstate`), completamente isolado do
+workspace `default` (onde vive a `vm-hopin-poc`):
+
+```bash
+# No PC onde consegues autenticar-te no Azure (az login), dentro de infra/terraform:
+
+# 1. Confirma em que workspace estás — deve aparecer "* default" se é o
+#    mesmo diretório que já gere a vm-hopin-poc.
+terraform workspace list
+
+# 2. Cria e muda para o workspace novo. A partir daqui, qualquer plan/apply
+#    só vê e só mexe no state deste workspace.
+terraform workspace new cms5poc
+
+# 3. Gera um par de chaves SSH dedicado a esta VM (evita confundir com a
+#    chave da vm-hopin-poc).
+mkdir -p ssh
+ssh-keygen -t ed25519 -f ./ssh/hopin_vm_key_cms5 -C "hopin-vm-cms5" -N ""
+
+# 4. Configura as variáveis próprias deste workspace.
+cp terraform.cms5.tfvars.example terraform.cms5.tfvars
+# edita terraform.cms5.tfvars: allowed_ssh_cidrs, acme_email, github_repo_url
+# (branch de trabalho), ghcr_image (tag correta, NÃO ":latest" do master)
+
+# 5. Plan/apply, sempre apontando o -var-file explicitamente.
+terraform plan  -var-file=terraform.cms5.tfvars
+terraform apply -var-file=terraform.cms5.tfvars
+```
+
+O output no final (`public_ip_address`, `ssh_command`, `site_domain`) é
+sobre a VM **deste** workspace — não confundir com o output da `vm-hopin-poc`
+se correres `terraform output` sem trocar de workspace primeiro.
+
+**Para voltar a mexer na `vm-hopin-poc`**: `terraform workspace select default`
+antes de qualquer `plan`/`apply` — confirma sempre com `terraform workspace
+show` qual workspace está ativo antes de aplicar algo, é o único passo que
+protege a VM em produção de um `apply` por engano.
+
+**Para desligar só esta segunda VM** (sem tocar na `vm-hopin-poc`, que vive
+noutro workspace/state):
+
+```bash
+terraform workspace select cms5poc
+terraform destroy -var-file=terraform.cms5.tfvars
+```
+
 ## Destruir tudo
 
 ```bash

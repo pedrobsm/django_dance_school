@@ -1,0 +1,43 @@
+# Copia para terraform.cms5.tfvars e ajusta os valores.
+# NUNCA commites terraform.cms5.tfvars — já está coberto pelo padrão
+# "terraform*.tfvars" no .gitignore deste diretório.
+#
+# Usa este ficheiro dentro de um Terraform WORKSPACE dedicado, nunca no
+# workspace "default" — é o que garante que isto cria recursos NOVOS em vez
+# de renomear/recriar a vm-hopin-poc já existente. Ver a secção "Segunda VM
+# (workspace dedicado)" no README.md deste diretório para o procedimento
+# completo.
+#
+#   terraform workspace new cms5poc
+#   terraform apply -var-file=terraform.cms5.tfvars
+#
+# environment muda o nome de TODOS os recursos (rg-hopin-cms5poc,
+# vm-hopin-cms5poc, etc.) — tem de ser diferente de "poc" (o da VM atual).
+environment = "cms5poc"
+
+allowed_ssh_cidrs = ["203.0.113.10/32"] # o teu IP público atual, com /32
+
+domain_name = "" # deixa vazio: usa automaticamente um hostname sslip.io novo, derivado do IP desta VM
+acme_email  = "admin@hopin.pt"
+
+# Chave SSH dedicada a esta VM (diferente da vm-hopin-poc, para não
+# confundir qual chave abre qual máquina). Gera-a no PC onde vais correr o
+# apply, ainda dentro de infra/terraform:
+#
+#   ssh-keygen -t ed25519 -f ./ssh/hopin_vm_key_cms5 -C "hopin-vm-cms5" -N ""
+#
+ssh_public_key_path = "./ssh/hopin_vm_key_cms5.pub"
+
+# Branch com o scaffolding novo (CMS 5 / Django 5.2 / Bootstrap 5) — NÃO
+# apontar para master enquanto este trabalho não estiver mesclado lá.
+github_repo_url = "https://github.com/pedrobsm/django_dance_school.git" # branch checkout feito manualmente por SSH após o apply, ver INFRA_NOTES.md
+
+# Imagem Docker desta linha de trabalho, publicada por CI a partir do branch
+# baseline/cms5-0.9.0-dev (ou o nome que esse branch tiver quando o workflow
+# de CI for criado/ajustado para lhe corresponder). NÃO usar a tag ":latest"
+# do master (essa é Django 3.1/CMS 3) — confirmar a tag certa antes do apply.
+# ghcr_image = "ghcr.io/pedrobsm/danceschool-web:cms5-dev"
+
+# Opcional: só necessário se o package ghcr.io/pedrobsm/danceschool-web for privado.
+#   export TF_VAR_ghcr_username=pedrobsm
+#   export TF_VAR_ghcr_token=ghp_xxx   (PAT com scope read:packages)
