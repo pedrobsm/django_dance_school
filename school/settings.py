@@ -260,6 +260,12 @@ MIDDLEWARE = [
     'cms.middleware.page.CurrentPageMiddleware',
     'cms.middleware.toolbar.ToolbarMiddleware',
     'cms.middleware.language.LanguageCookieMiddleware',
+    # Exigido pelo django-allauth a partir de uma versão bem mais recente do
+    # que a que corria com Django 3.1/CMS3 (setup.py do 0.9.0-dev pede
+    # django-allauth>=65.9.0) — sem isto, allauth.account.apps.AccountConfig
+    # .ready() recusa-se a arrancar com ImproperlyConfigured. Descoberto ao
+    # correr `manage.py check` pela primeira vez nesta VM (2026-08-28).
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'school.urls'
