@@ -202,46 +202,38 @@ confirma a expectativa do plano: "deve portar quase sem mexer") — 3 séries
 de aulas (passada/atual/futura) + 1 evento social criados na
 `vm-hopin-cms5poc` sem nenhum erro.
 
-27. **Fluxo de inscrição público partido — página `/en/register/` carrega
-    (200, nav+carrinho renderizam bem) mas a zona de listagem de
-    aulas/eventos fica completamente vazia**, mesmo com Series/Events
-    reais na BD. Investigação (2026-08-28):
-    - O alias `public_register_content` existe, está **`published`**
-      (confirmado — não é o bug da armadilha 24), e tem os 4 plugins
-      esperados (`PublicRegisterNavPlugin` + 3×`PublicRegisterEventPlugin`).
-    - Chamar `PublicRegisterEventPluginModel.getEvents(initial=Event.objects.all())`
-      diretamente no shell **devolve o evento certo** — os dados e a lógica
-      de query em si funcionam.
-    - Não é cache de página (armadilha 13): testado com query string
-      aleatória, sem `Cache-Control` na resposta desta view.
-    - Não é `registration__registrationEnabled` a redirecionar para
-      offline: resposta é `200` direto, sem `Location`, sem texto de
-      "offline"/"disabled".
-    - **O HTML real mostra a `<div>` onde `{% static_alias
-      'public_register_content' site %}` deveria renderizar os plugins
-      genuinamente vazia** — o próprio tag do `djangocms_alias` não está a
-      produzir output nenhum nesta view, apesar do alias existir e estar
-      publicado. `PublicRegisterView` é uma `TemplateView`/`FormView`
-      Django normal (não passa pelo pipeline de páginas do CMS), o que pode
-      interagir mal com o tag `static_alias` de alguma forma ainda não
-      identificada — `site` está disponível no contexto via
-      `danceschool.core.context_processors.site`, por isso não parece ser
-      simplesmente uma variável em falta.
-    - **Correspondência forte com a regressão já avisada no PR #187**:
-      "remoção da chave de contexto `regOpenSeries` (PR #173)... 2 testes
-      do `payatdoor` marcados `@expectedFailure`, fora do âmbito do PR" —
-      não confirmámos a causa raiz exata (não encontrámos `regOpenSeries`
-      em lado nenhum do código atual, sugerindo que já foi removida/
-      renomeada e o problema agora manifesta-se de outra forma), mas o
-      sintoma bate certo: fluxo de registo público que deixou de listar
-      eventos numa altura próxima da introdução do sistema de Aliases.
-    - **Não convém investir mais tempo a isto sem orientação** — é
-      claramente uma regressão pré-existente do `0.9.0-dev`
-      (não introduzida pelas nossas alterações), tal como o próprio PR #187
-      já assinalava. Reportado ao Pedro em 2026-08-28 para decidir como
-      avançar (testar via o fluxo de registo à porta/staff como
-      alternativa, investigar mais a fundo, ou aceitar como limitação
-      conhecida do 0.9.0-dev e seguir para outros critérios de avaliação).
+27. **FALSO ALARME, não um bug** — `/en/register/` carrega (200) mas a
+    listagem de aulas/eventos aparecia vazia, enquanto `/pt/register/`
+    mostra tudo perfeitamente (25KB vs 8KB de HTML, "Upcoming Classes",
+    "Upcoming Events", Lindy Hop, Blues, o evento social, preços e
+    `data-event-id`/`data-role-id` reais nos botões de inscrição).
+    **Causa**: o `setupschool` só criou conteúdo em **português**
+    (`initial_language = settings.LANGUAGES[0][0]`, e `LANGUAGES` tem
+    `'pt'` primeiro) — o alias `public_register_content` e as páginas só
+    têm `AliasContent`/`PageContent` em `pt`, não em `en`. A navbar/
+    carrinho aparecem traduzidos em inglês na mesma (vêm de `{% trans %}`
+    no `.po`, não do conteúdo), o que **disfarça** a página como
+    "carregada mas vazia" em vez de óbvia falta de tradução — foi isto
+    que me fez investigar um "bug" que não existia.
+    **Diagnóstico levado bem mais longe do que devia** antes de encontrar
+    isto (deixado registado para não repetir o processo): confirmado que
+    não é cache de página nem de placeholder (testado com
+    `cache.clear()` e `redis-cli FLUSHALL`, sem alterar nada), que o
+    alias e os 4 plugins existem e estão publicados, que
+    `getEvents()`/`get_allEvents()` devolvem os eventos certos em
+    isolamento, e — com um `print`/escrita em ficheiro injetada
+    temporariamente em `PublicRegisterEventPlugin.render()` dentro do
+    container a correr (revertida a seguir com um redeploy) — que o
+    método só é chamado quando o pedido é a `/pt/register/`, nunca a
+    `/en/register/`. **Mesma classe de problema da armadilha 20** (só que
+    em aliases/register em vez de páginas com url-overwrite): conteúdo
+    só existe num idioma até correr `translate_cms_pages` (Fase 4/5) ou
+    equivalente para o `0.9.0-dev`.
+    **Conclusão sobre o `regOpenSeries`/PR #173**: continua por
+    confirmar se afeta alguma coisa aqui — o fluxo de registo público em
+    si, testado em `pt`, funciona. Só vale a pena voltar a este assunto
+    se os testes automatizados do payatdoor (que correm em inglês, por
+    omissão) revelarem mesmo uma falha distinta desta.
 
 ## Estado da infraestrutura
 
