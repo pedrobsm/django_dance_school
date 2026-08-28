@@ -22,8 +22,17 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
 Trabalho ativo para avaliar o upstream `0.9.0-dev` (Django 5.2, django-cms
 5.0.1, Bootstrap 5 via `djangocms-frontend`) como substituto do `master`
 atual (Django 3.1/CMS 3, fóssil no PyPI). Ver `## Estado da infraestrutura`
-abaixo para os detalhes da `vm-hopin-poc` — essa é a referência funcional
-validada e **não deve ser tocada** por este trabalho.
+abaixo para os detalhes da `vm-hopin-poc` — essa era a referência funcional
+CMS3 validada e a regra original desta migração era **não a tocar**.
+
+**ATUALIZAÇÃO 2026-08-28**: a regra acima foi **explicitamente revertida
+pelo Pedro**, a pedido dele — ver item 30 abaixo ("Deploy vanilla PR #187
+na vm-hopin-poc"). A stack CMS3 antiga que corria em `vm-hopin-poc`
+(20.126.64.224) foi desligada e substituída por uma instalação CMS5
+mínima (só PR #187 + bugfixes locais, sem tema/i18n/dummy data HOP IN),
+para o Pedro poder testar o PR #187 exatamente como o autor o testou. A
+stack CMS3 antiga **não existe mais nesta VM** — ver item 30 para onde
+ficou o backup dos dados antigos antes de serem apagados.
 
 - **Branch de trabalho**: `baseline/cms5-0.9.0-dev`, criado a partir do
   `master`. Abordagem: scaffolding novo (settings.py/Dockerfile de raiz para
@@ -268,6 +277,49 @@ de aulas (passada/atual/futura) + 1 evento social criados na
       Confirmado o erro exato: `Cannot resolve keyword 'publisher_is_draft'
       into field`.
 
+30. **Deploy "vanilla" do PR #187 na `vm-hopin-poc` (2026-08-28)** — a
+    pedido explícito do Pedro, reconfirmado depois de eu apontar que
+    contradizia a regra original "não tocar na vm-hopin-poc" (ver
+    atualização no topo deste ficheiro). Objetivo: dar ao Pedro um
+    ambiente para testar o PR #187 exatamente como o autor o testou, sem
+    nenhuma customização HOP IN.
+    - **Backup feito antes de apagar nada**: `pg_dump -F c` da BD CMS3
+      antiga (13 séries, 4 users) + tar dos volumes `media`/`privatemedia`,
+      guardados em `/opt/hopin/backups-pre-cms5-vanilla/` na própria VM.
+      Stack antiga (`danceschool`, CMS3/postgres:10.6) removida com
+      `docker stack rm`, e os volumes `danceschool_postgres`/
+      `staticfiles`/`media`/`privatemedia` apagados a seguir (incompatíveis
+      com postgres:18 de qualquer forma). Volumes de certificados
+      (`certs`/`vhost.d`/`acme`/`html`) **mantidos**, para não perder o
+      certificado Let's Encrypt já emitido para este domínio.
+    - **Checkout novo e isolado**: `/opt/hopin/app-cms5-vanilla/` (clone de
+      `baseline/cms5-0.9.0-dev`), separado de `/opt/hopin/app/` (master,
+      agora parado) e `/opt/hopin/app-i18n/`. Não mexe em nenhum dos outros
+      dois.
+    - **O que "vanilla" significa aqui, na prática** (decisão minha,
+      documentada para transparência): 0.9.0-dev + patch do PR #187 +
+      os 3 bugfixes locais que já tínhamos descoberto no `baseline/cms5-
+      0.9.0-dev` (import do `StaticPlaceholder`, `created_by=user` em
+      falta, `Version` a ficar sempre em draft — ver Dockerfile) — **estes
+      3 mantidos de propósito**, porque sem eles o `setupschool` rebenta
+      de imediato (confirmado antes, na `vm-hopin-cms5poc`), o que não
+      deixaria nada para o Pedro testar. Removido face ao
+      `baseline/cms5-0.9.0-dev`: app `democontent` (dummy data),
+      `danceschool.payments.payatdoor` (decisão HOP IN, não faz parte do
+      PR), `LANGUAGES`/`CMS_LANGUAGES` bilingue PT/EN (fica só inglês, o
+      default do próprio pacote), `LOCALE_PATHS` custom, e as pastas
+      `custom/`/`locale/` nem sequer são copiadas para a imagem Docker.
+      `hopintheme` já estava desativada no `baseline` (ver item 25/26).
+    - **Estado atual**: stack completa (`web`/`nginx`/`letsencrypt-
+      companion`/`postgres`/`redis`/`huey`) a correr 1/1,
+      `https://20-126-64-224.sslip.io/` e `/en/admin/login/` confirmados a
+      responder 200 com CSS/estáticos a carregar. `migrate` e
+      `collectstatic` já correram. Superuser `admin` criado (password em
+      `/opt/hopin/.superuser_credentials-cms5-vanilla` na VM, `chmod 600`).
+      **`setupschool` NÃO foi corrido de propósito** — fica para o Pedro
+      correr manualmente (`docker exec -it <container_web> python3
+      manage.py setupschool`), tal como pedido.
+
 ## Estado da infraestrutura
 
 - **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC).
@@ -297,8 +349,12 @@ de aulas (passada/atual/futura) + 1 evento social criados na
   de o `apply` ter corrido noutro). SSH confirmado a funcionar a partir
   desta máquina. Estado: Docker ativo, disco `/data` montado, swap 2GB, ufw
   + fail2ban ativos, repo em `/opt/hopin/app`.
-- **Site em produção e funcional** (2026-08-24):
-  `https://20-126-64-224.sslip.io/` responde 200 (django CMS welcome page),
+- **[SUPERSEDIDO em 2026-08-28 — ver item 30]** A stack CMS3 descrita neste
+  parágrafo já não existe nesta VM (substituída pelo deploy vanilla CMS5).
+  Mantido abaixo só como registo histórico de como esta VM esteve montada
+  entre 2026-08-24 e 2026-08-28.
+- ~~**Site em produção e funcional** (2026-08-24):~~
+  `https://20-126-64-224.sslip.io/` respondia 200 (django CMS welcome page),
   `/admin/login/` responde 200 com CSS a carregar (Django site admin).
   Certificado de produção real da Let's Encrypt, validado externamente
   (`SSL verify result: 0`, sem `-k`). Migrações aplicadas, `collectstatic`
