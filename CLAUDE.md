@@ -17,6 +17,69 @@ associação — não é ainda produção real. Comunicação sobre a HOP IN é 
 - Upstream original: `github.com/django-danceschool/production-template`
 - Documentação do projeto: `django-danceschool.readthedocs.io`
 
+## Migração para CMS 5 / Django 5.2 (0.9.0-dev) — em curso (2026-08-28)
+
+Trabalho ativo para avaliar o upstream `0.9.0-dev` (Django 5.2, django-cms
+5.0.1, Bootstrap 5 via `djangocms-frontend`) como substituto do `master`
+atual (Django 3.1/CMS 3, fóssil no PyPI). Ver `## Estado da infraestrutura`
+abaixo para os detalhes da `vm-hopin-poc` — essa é a referência funcional
+validada e **não deve ser tocada** por este trabalho.
+
+- **Branch de trabalho**: `baseline/cms5-0.9.0-dev`, criado a partir do
+  `master`. Abordagem: scaffolding novo (settings.py/Dockerfile de raiz para
+  CMS 5), não uma migração do deploy existente — só se reaproveita
+  `infra/terraform/`, o `.po` de i18n, e os comandos de dados
+  (`democontent`, parte de dados do `create_hopin_demo_data`).
+- **Patch obrigatório**: `setupschool` está partido no `0.9.0-dev` por
+  mudanças de API do CMS 5 — release blocker, PR ainda por fundir:
+  [django-danceschool/django-danceschool#187](https://github.com/django-danceschool/django-danceschool/pull/187)
+  (branch `facundofiorino:setupschool-cms5-migration`, SHA a fixar
+  `9ce23c9f0c77d203e64202e089d2e24dae801246`). Confirmado em 2026-08-28:
+  ainda aberto, `mergeable_state: clean` (aplica sem conflitos apesar da
+  base ter avançado 2 merges triviais entretanto — reconfirmar se voltares
+  a isto muito mais tarde). Migra `setupschool.py` e os 4 `setup_<processor>.py`
+  para `PageContent.admin_manager`/`Version`/`AliasContent` (API nova do
+  CMS 5 + `djangocms-versioning`/`djangocms-alias`).
+- **Regressão conhecida, não relacionada**: o PR #187 refere que a remoção
+  da chave de contexto `regOpenSeries` (PR #173) deixa 2 testes de
+  `payatdoor` a falhar (marcados `@expectedFailure` no PR). Testar o fluxo
+  de inscrição cedo, antes de investir em branding/i18n/dados — é o núcleo
+  do que a HOP IN precisa.
+- **A documentação oficial do `0.9.0-dev` está desatualizada** —
+  `docs/installation_manual.rst` ainda descreve `MIDDLEWARE_CLASSES`,
+  `djangocms_bootstrap4`, `dal`/`daterange_filter` (CMS 3, não bate certo
+  com o próprio `setup.py` desse branch); `docs/version_history.rst` para
+  em 0.9.3/2021, sem menção à migração CMS 5. **Não confiar nesta doc** —
+  construir `INSTALLED_APPS`/`MIDDLEWARE` a partir do `install_requires`
+  do `setup.py` + leitura direta do código de cada app (`cms_apps.py`).
+  `django-danceschool/production-template` (o scaffold oficial) também só
+  tem branches `master`/`docker`/`more-heroku`, todos ainda CMS 3 — não
+  adaptar, construir de raiz.
+- **Armadilha 19 (colisão `SqliteHuey`) confirmada ainda presente** no
+  `default_settings.py` do `0.9.0-dev`, byte a byte igual — o `HUEY =
+  SqliteHuey(...)` no topo do ficheiro continua a correr como efeito
+  secundário do import antes de `HUEY = RedisHuey(...)` o sobrepor. Mesma
+  mitigação da vanilla (Hetzner): não entrar em pânico se um container
+  falhar uma vez no arranque, o Swarm normalmente autorrecupera.
+- **`CMS_CONFIRM_VERSION4 = True`** aparece como setting novo no
+  `default_settings.py` do 0.9.0-dev — por investigar o que exatamente
+  ativa quando chegarmos ao scaffolding (Fase 2).
+- **VM nova, isolada via Terraform workspace** (ver
+  `infra/terraform/README.md`, secção "Segunda VM"): `vm-hopin-cms5poc`,
+  IP `51.145.244.142`, domínio `51-145-244-142.sslip.io`, user
+  `hopinadmin`, chave `C:\Users\pedro\.ssh\hopin_vm_key_cms5`. Cloud-init
+  confirmado `status: done` em 2026-08-28 (docker, ufw, fail2ban, swap,
+  disco `/data` todos ativos — mesmo bootstrap já validado na
+  `vm-hopin-poc`). Repo em `/opt/hopin/app`, branch trocado manualmente
+  para `baseline/cms5-0.9.0-dev` (o cloud-init clona sempre o branch
+  default do repo, `master` — não há variável Terraform para branch,
+  trocar sempre à mão depois do `apply`). **Ainda não tem app nenhuma a
+  correr** — `docker/setup_stack.sh` do `master` não se aplica aqui (é
+  Django 3.1/CMS 3); Fase 2 (scaffolding `settings.py`/`Dockerfile` novos)
+  é o próximo passo antes de arrancar qualquer stack nesta VM. Aviso do
+  Ubuntu sobre kernel pendente (`6.8.0-1064` vs `-1065`) — inofensivo para
+  a PoC, ignorar por agora.
+
 ## Estado da infraestrutura
 
 - **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC).
