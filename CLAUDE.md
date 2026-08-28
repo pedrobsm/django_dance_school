@@ -73,12 +73,136 @@ validada e **não deve ser tocada** por este trabalho.
   `vm-hopin-poc`). Repo em `/opt/hopin/app`, branch trocado manualmente
   para `baseline/cms5-0.9.0-dev` (o cloud-init clona sempre o branch
   default do repo, `master` — não há variável Terraform para branch,
-  trocar sempre à mão depois do `apply`). **Ainda não tem app nenhuma a
-  correr** — `docker/setup_stack.sh` do `master` não se aplica aqui (é
-  Django 3.1/CMS 3); Fase 2 (scaffolding `settings.py`/`Dockerfile` novos)
-  é o próximo passo antes de arrancar qualquer stack nesta VM. Aviso do
-  Ubuntu sobre kernel pendente (`6.8.0-1064` vs `-1065`) — inofensivo para
-  a PoC, ignorar por agora.
+  trocar sempre à mão depois do `apply`). Aviso do Ubuntu sobre kernel
+  pendente (`6.8.0-1064` vs `-1065`) — inofensivo para a PoC, ignorar por
+  agora.
+  - **Cuidado**: nesta VM já houve um episódio em que outro agente correu
+    o `docker/setup_stack.sh` do branch `master` por engano (deployou o
+    stack fóssil Django 3.1/CMS3 nesta VM que devia ficar só para CMS5).
+    Foi detetado (`django.VERSION` a devolver `(3,1,14,...)` dentro do
+    container) e limpo (stack removida, volumes e imagens fósseis
+    apagados). Confirmar sempre `git log -1` e `django.VERSION` antes de
+    assumir que o que está a correr é o CMS5.
+
+### Fase 2 (scaffolding) — feita e validada
+
+`school/settings.py`/`school/urls.py`/`Dockerfile`/`docker-compose*.yml`
+reescritos de raiz (não migração incremental) — ver commits
+`2aa0923`..`b4cce6c` em `baseline/cms5-0.9.0-dev`. `INSTALLED_APPS`
+construído a partir do `install_requires` do `setup.py` do 0.9.0-dev +
+leitura direta do código de cada app (`cms_apps.py`, `cms_plugins.py`,
+`forms/*.py`), não da doc oficial (confirmada desatualizada). Principais
+trocas face ao `master`: `djangocms_text` (não `_ckeditor`),
+`djangocms_frontend` (não `_bootstrap4`), + `djangocms_versioning`/
+`djangocms_alias`/`parler`, `crispy_bootstrap5`, `multi_email_field`.
+`django.conf.urls.url` → `django.urls.re_path` (removido no Django 4).
+Bug real apanhado: `django-allauth` novo exige
+`allauth.account.middleware.AccountMiddleware` em `MIDDLEWARE`.
+
+### Fase 3 (arranque e validação crítica) — stack completa a funcionar
+
+**Resultado final confirmado em 2026-08-28**: `https://51-145-244-142.sslip.io/pt/`
+responde `200`, mostra "Welcome to HOP IN", com certificado real
+Let's Encrypt válido. `/pt/frequently-asked-questions/`, `/pt/instructors/`,
+`/pt/calendar/`, `/en/register/`, `/pt/admin/login/` todos `200`.
+`setupschool` cria as **10 páginas + 3 grupos** esperados
+(Board/Instructor/Registration Desk). Superuser `admin`, password em
+`/opt/hopin/.superuser_credentials` na VM (chmod 600 — muda-a depois de a
+leres).
+
+Chegar até aqui exigiu resolver, por esta ordem, uma cadeia de problemas —
+cada um confirmado antes de avançar para o seguinte, não contornado às
+escondidas:
+
+21. **`postgres:18` recusa-se a arrancar sem `POSTGRES_PASSWORD` ou
+    `POSTGRES_HOST_AUTH_METHOD`** — o `postgres:10.6` antigo (usado até
+    2026-08-28) tinha isto implícito. **Fix**: `POSTGRES_HOST_AUTH_METHOD:
+    trust` no `docker-compose*.yml` e no `docker run` do
+    `setup_stack.sh`. O superuser `postgres` só é acedido localmente
+    (socket Unix, pelo `setup_stack.sh`, que cria depois um utilizador com
+    password real); `trust` alarga isto a TCP dentro da rede overlay
+    `danceschool_default`, que nunca é publicada para o host — mesmo risco
+    implícito que já existia, agora só explícito.
+
+22. **`postgres:18` mudou o layout do data directory** (compatível com
+    `pg_ctlcluster`, ver `docker-library/postgres#1259`) — recusa-se a
+    arrancar se o volume for montado diretamente em
+    `.../var/lib/postgresql/data` como no `postgres:10.6`. **Fix**: montar
+    o volume na raiz `/var/lib/postgresql` (a imagem cria a subestrutura
+    sozinha), nos 3 sítios que referenciam isto:
+    `docker-compose.yml`, `docker/docker-compose-shellonly.yml`,
+    `docker/setup_stack.sh`.
+
+23. **`migrate_static_placeholders.py` importa `StaticPlaceholder` de
+    `cms.models` incondicionalmente** — classe removida no CMS 5,
+    rebentava o import do módulo inteiro mesmo numa instalação nova sem
+    nada para migrar, porque `setupschool.py` usa 3 helpers deste ficheiro
+    (para criar Aliases) que nunca tocam em `StaticPlaceholder`. **Fix**:
+    patch local (`docker/web/patches/0001-migrate_static_placeholders-cms5-import.patch`,
+    aplicado no Dockerfile) — import defensivo com `try/except ImportError`.
+    Achado nosso, não do PR #187. **Pormenor à parte**: este ficheiro vem
+    do upstream com terminadores CRLF (só este) — o `patch` recusa por
+    "different line endings" sem normalizar para LF primeiro
+    (`sed -i 's/\r$//'`).
+
+24. **PR #187 (patch obrigatório do `setupschool` para CMS5) tinha, ele
+    próprio, dois bugs** — confirmados ao correr `setupschool` a sério,
+    não visíveis só de ler o diff:
+    - `create_versioned_page()` chama `create_page(language=language,
+      **create_page_kwargs)` **sem `created_by`**. O próprio django-cms 5
+      avisa ("No user has been supplied... No version could be created")
+      e, pior do que o aviso diz, **também não popula os placeholders da
+      página a partir do template** nesse caso —
+      `get_page_placeholder()` (também do PR) falhava a seguir com
+      `Placeholder.DoesNotExist`. Fix: passar `created_by=user`.
+    - Mesmo com o `user` passado, a `Version` criada **ficava sempre em
+      `draft`**: o manager do `PageContent` do `djangocms_versioning` já
+      cria sozinho uma `Version` DRAFT como efeito secundário do próprio
+      `.create()` (chamado por `cms.api.create_page()`); como o PR usa
+      `Version.objects.get_or_create(..., defaults={'state': PUBLISHED})`,
+      encontra essa linha já existente e não aplica os `defaults`. A
+      consequência real: as 10 páginas existiam na BD mas nenhuma era
+      visível a um visitante anónimo (`/pt/` redirecionava para
+      `/pt/admin/login/?next=/pt/admin/cms/pagecontent/`, o comportamento
+      do django-cms quando não há nenhuma página publicada). Fix: chamar
+      o método próprio da máquina de estados do `djangocms_versioning`,
+      `version.publish(user)`, não escrever o campo `state` à mão.
+    Ambos corrigidos como patches locais adicionais em cima do PR #187
+    (`docker/web/patches/fix_publish_version.py` + um `sed` no Dockerfile
+    para o `created_by`) — **considerar reportar os dois ao autor do PR**,
+    não ficaram óbvios só de ler o código, só ao correr a sério.
+
+25. **`custom/hopintheme` (o nosso tema, escrito para CMS3/Bootstrap4)
+    quebrava o scan de placeholders do CMS5** — o `cms/home.html` do
+    hopintheme (que ganha por ordem de `INSTALLED_APPS`) tem
+    `{% static_placeholder "footer" %}`, tag do CMS3; o template stock
+    equivalente (`danceschool.themes.business_frontpage`) já usa
+    `{% static_alias "footer" site %}` (API do CMS5). Isto fazia
+    `get_declared_placeholders_for_obj()` devolver `[]` para
+    `cms/home.html`, e por consequência `content_placeholder =
+    home_page.placeholders.get(slot='content')` falhava. **`hopintheme`
+    desativado temporariamente** em `INSTALLED_APPS` (comentado, não
+    apagado) até ser reescrito para CMS5/Bootstrap5 — já estava previsto
+    no plano da migração como trabalho de Fase 4/5, não um patch pontual
+    agora.
+
+26. **Certificado Let's Encrypt com chave/certificado desincronizados**
+    (`SSL_CTX_use_PrivateKey(...) failed: key values mismatch`) depois de
+    vários ciclos de `docker stack rm`/`deploy` durante o debug desta
+    sessão — confirmado com `openssl x509 -modulus`/`openssl rsa -modulus`
+    que o `.cer` e o `.key` do próprio `acme.sh` (não só a cópia no volume
+    `danceschool_certs`) já não coincidiam. **Fix**: apagar a pasta do
+    domínio tanto em `danceschool_certs` como em `danceschool_acme`
+    (a conta ACME regista-se noutro sítio, fica intacta) e forçar
+    `docker service update --force danceschool_letsencrypt-companion` —
+    emite um certificado genuinamente novo e consistente.
+
+**Ainda por fazer nesta Fase 3**: testar o fluxo de inscrição ponta-a-ponta
+(prioridade máxima do plano) — precisa de pelo menos uma Series/Event para
+inscrever, o que por sua vez precisa do `custom/democontent` (Fase 4) para
+gerar dados de teste. Correr os testes automatizados do projeto e confirmar/
+não a regressão conhecida do `regOpenSeries` (PR #173) fica também por
+fazer.
 
 ## Estado da infraestrutura
 
