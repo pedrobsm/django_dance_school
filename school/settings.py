@@ -84,9 +84,19 @@ INSTALLED_APPS = [
 
     # Apps custom da HOP IN.
     'democontent',
-    # Overrides de templates/CSS do tema (tem de vir antes do tema para o
-    # Django encontrar aqui primeiro — só usamos APP_DIRS, sem TEMPLATES['DIRS']).
-    'hopintheme',
+    # 'hopintheme' DESATIVADA de propósito por agora (2026-08-28) — os seus
+    # templates (cms/home.html, etc.) são cópias do CMS3/Bootstrap4 com tags
+    # removidas no CMS5 (`{% static_placeholder %}`, substituída por
+    # `{% static_alias %}` no template stock do business_frontpage). Isso
+    # rebentava silenciosamente o scan de placeholders do django-cms 5
+    # (`get_declared_placeholders_for_obj` devolvia `[]` para `cms/home.html`
+    # quando o override do hopintheme vencia por ordem de INSTALLED_APPS),
+    # o que fazia o `setupschool` falhar com `Placeholder.DoesNotExist` ao
+    # criar a Home page. Já estava identificado no plano da migração CMS5
+    # como trabalho da Fase 4 ("templates Bootstrap4/CMS3, vai precisar de
+    # reescrita") — reativar só depois de reescrever para CMS5/Bootstrap5,
+    # não com um patch pontual. Ver CLAUDE.md.
+    # 'hopintheme',
 
     # Tema base do projeto (plugins Bootstrap "clássicos" do próprio
     # danceschool, distintos do djangocms_frontend abaixo).
