@@ -16,14 +16,18 @@ splash_caption/content placeholders with the manifesto text again, so it
 always converges instead of piling up duplicate plugins.
 
 Complements (does not replace) create_demo_data: reuses the same Locations
-and Lead/Follow DanceRole by name, so running both is safe.
+and Lead/Follow DanceRole by name, so running both is safe. Also deletes
+the 'Leader'/'Follower' DanceRoles (a redundant pair from setupschool's own
+prompt), adds 'Solo'/'Switch', and creates one test user per pre-existing
+permission group (Staff/Board, Teacher/Instructor, Volunteer/Registration
+Desk — all password "hopintest").
 
 Usage:
     python3 manage.py create_hopin_demo_data
 """
 from datetime import datetime, timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.text import slugify
@@ -48,22 +52,61 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         # --- Roles ---
+        # Reuses the pre-existing 'Lead'/'Follow' DanceRoles by name
+        # (get_or_create matches them if create_demo_data.py already ran;
+        # creates them fresh otherwise — never duplicates). 'Leader'/
+        # 'Follower' are a separate, redundant pair created by setupschool's
+        # own "Define 'Leader' and 'Follower' roles" prompt — deleted here so
+        # there's a single canonical role set. Safe: no real registrations
+        # reference them (only the demo registration created during Fase 3
+        # testing uses 'Lead').
+        DanceRole.objects.filter(name__in=['Leader', 'Follower']).delete()
         lead, _ = DanceRole.objects.get_or_create(name='Lead', defaults={'order': 1})
         follow, _ = DanceRole.objects.get_or_create(name='Follow', defaults={'order': 2})
         solo_role, _ = DanceRole.objects.get_or_create(
-            name='Dancarino(a)', defaults={'pluralName': 'Dancarinos(as)', 'order': 3}
+            name='Solo', defaults={'pluralName': 'Solo', 'order': 3}
+        )
+        switch_role, _ = DanceRole.objects.get_or_create(
+            name='Switch', defaults={'pluralName': 'Switch', 'order': 4}
         )
         self.stdout.write('Roles ok.')
 
+        # --- Test accounts, one per pre-existing permission group ---
+        # Groups themselves come from setupschool's setup_permissions step
+        # (Board / Instructor / Registration Desk) — this only creates one
+        # user per group to log in and see what each role can/cannot do.
+        # is_staff=True is required for any of them to reach /admin/ at all;
+        # permissions beyond that come entirely from the group.
+        test_accounts = [
+            ('Staff', 'Board', 'staff@hopin.pt'),
+            ('Teacher', 'Instructor', 'teacher@hopin.pt'),
+            ('Volunteer', 'Registration Desk', 'volunteer@hopin.pt'),
+        ]
+        for username, group_name, email in test_accounts:
+            user, _ = User.objects.get_or_create(username=username, defaults={'email': email})
+            user.email = email
+            user.is_staff = True
+            user.set_password('hopintest')
+            user.save()
+            group = Group.objects.filter(name=group_name).first()
+            if group:
+                user.groups.add(group)
+            else:
+                self.stdout.write(self.style.WARNING(
+                    "Grupo '%s' nao existe (corre setupschool primeiro) - "
+                    "conta '%s' criada sem grupo." % (group_name, username)
+                ))
+        self.stdout.write('Contas de teste por grupo ok.')
+
         # --- Dance types & levels ---
         lindy, _ = DanceType.objects.get_or_create(name='Lindy Hop', defaults={'order': 1})
-        lindy.roles.set([lead, follow])
+        lindy.roles.set([lead, follow, switch_role])
         jazz, _ = DanceType.objects.get_or_create(name='Solo Jazz / Authentic Jazz', defaults={'order': 2})
         jazz.roles.set([solo_role])
         tap, _ = DanceType.objects.get_or_create(name='Tap', defaults={'order': 3})
         tap.roles.set([solo_role])
         shag, _ = DanceType.objects.get_or_create(name='Shag', defaults={'order': 4})
-        shag.roles.set([lead, follow])
+        shag.roles.set([lead, follow, switch_role])
 
         levels = {}
         level_specs = [
@@ -336,7 +379,20 @@ class Command(BaseCommand):
         self.stdout.write('Workshops de Setembro 2026 ok.')
 
         # --- Homepage with the HOP IN brand manifesto (condensed) ---
-        self._create_cms_pages()
+        # Still CMS3-era API (cms.api.create_page/publish_page, Page.placeholders
+        # — the latter doesn't even exist on CMS 5's Page model anymore) — the
+        # rewrite for djangocms-versioning/aliases is separate, later work (see
+        # CLAUDE.md, "Migração para CMS 5"). Guarded here so a data-only run
+        # (roles, instructors, series, test accounts) still completes and
+        # commits even though this part is known-broken on CMS 5 right now.
+        try:
+            self._create_cms_pages()
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(
+                'Paginas CMS (manifesto/Professores/Turmas) nao criadas - '
+                'esta parte ainda usa API do CMS3 e precisa de reescrita '
+                'para o CMS5: %s' % e
+            ))
 
         self.stdout.write(self.style.SUCCESS('Dados HOP IN criados com sucesso.'))
 
