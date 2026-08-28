@@ -1,0 +1,23 @@
+--- a/danceschool/core/management/commands/migrate_static_placeholders.py
++++ b/danceschool/core/management/commands/migrate_static_placeholders.py
+@@ -9,7 +9,17 @@
+ from django.contrib.contenttypes.models import ContentType
+ from django.core.management.base import BaseCommand
+
+-from cms.models import CMSPlugin, Placeholder, StaticPlaceholder
++try:
++    from cms.models import CMSPlugin, Placeholder, StaticPlaceholder
++except ImportError:
++    # StaticPlaceholder was removed in django-cms 4/5 (replaced by the Alias
++    # system this file migrates *to*). This module is imported by
++    # setupschool.py's SetupMixin.get_alias() purely for its
++    # _get_or_create_alias*() helpers, which never touch StaticPlaceholder —
++    # only _process_static_placeholders()/_cleanup() (the actual CMS3->CMS4
++    # migration logic below) do, and those are unreachable on a fresh CMS5
++    # install anyway. Local fix, not from upstream PR #187 — see CLAUDE.md,
++    # "Migração para CMS 5" section, for the full story.
++    from cms.models import CMSPlugin, Placeholder
++    StaticPlaceholder = None
+
+ from djangocms_alias.models import Category, Alias, AliasContent
+ from djangocms_alias.constants import DEFAULT_STATIC_ALIAS_CATEGORY_NAME

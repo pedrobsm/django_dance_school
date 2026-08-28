@@ -32,6 +32,19 @@ RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") 
     && patch -p1 -d "$SITE_PACKAGES" < /tmp/pr187.patch \
     && rm /tmp/pr187.patch
 
+# Patch local (nosso, não do PR #187): migrate_static_placeholders.py importa
+# `StaticPlaceholder` de cms.models incondicionalmente, mas essa classe foi
+# removida no CMS 5 — rebenta o import do módulo inteiro mesmo numa instalação
+# nova, mesmo sem nenhum StaticPlaceholder para migrar. setupschool.py precisa
+# de 3 helpers deste ficheiro (para criar os Aliases de footer/stats), que
+# nunca tocam em StaticPlaceholder — só as funções de migração de facto (que
+# não fazem sentido correr numa instalação CMS5 de raiz) é que usam. Ver
+# CLAUDE.md, secção "Migração para CMS 5", para o contexto completo.
+COPY docker/web/patches/0001-migrate_static_placeholders-cms5-import.patch /tmp/local0001.patch
+RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") \
+    && patch -p1 -d "$SITE_PACKAGES" < /tmp/local0001.patch \
+    && rm /tmp/local0001.patch
+
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r requirements_custom.txt
 
