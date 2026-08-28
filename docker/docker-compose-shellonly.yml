@@ -21,7 +21,11 @@ services:
           - web
 
   postgres:
-    image: postgres:10.6
+    # Tem de ser a MESMA versão do postgres usada em ../docker-compose.yml —
+    # o volume de dados (danceschool_postgres) é partilhado entre os dois, e
+    # o Postgres recusa-se a arrancar sobre um data directory escrito por
+    # uma major version diferente. Ver comentário lá para o porquê do 18.
+    image: postgres:18
     hostname: postgres
     deploy:
       replicas: 1

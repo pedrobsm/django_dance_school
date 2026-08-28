@@ -64,7 +64,11 @@ services:
       - nginx
 
   postgres:
-    image: postgres:10.6
+    # postgres:10.6 (CMS3/Django 3.1 era) está EOL há muito. O PR #187
+    # (patch obrigatório do setupschool para CMS 5, ver CLAUDE.md) foi
+    # validado ponta-a-ponta pelo autor sobre Postgres 18 — usamos a mesma
+    # versão aqui por consistência com esse teste de referência.
+    image: postgres:18
     hostname: postgres
     deploy:
       replicas: 1

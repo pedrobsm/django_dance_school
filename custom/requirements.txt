@@ -1,4 +1,16 @@
+# Requisitos das apps custom da HOP IN (custom/democontent, custom/hopintheme).
+#
+# Os pins fósseis da era CMS3/Django 3.1 (django-cms<3.10,
+# django-admin-rangefilter<0.7, django-multiselectfield==0.1.12) foram
+# removidos de propósito — eram todos contornos de bugs de versões antigas
+# incompatíveis com o Django 3.1 pinado nessa altura (ver CLAUDE.md,
+# armadilhas 3 e 11). O 0.9.0-dev já pede versões novas destes mesmos
+# pacotes diretamente no seu setup.py (django-cms>=5.0.1,
+# django-admin-rangefilter>=0.13.2, django-multiselectfield>=0.1.13), por
+# isso não há necessidade de os repetir/pinar aqui outra vez.
+#
+# django-addanother não tem versão pinada no setup.py do django-danceschool
+# (é só usado pelas nossas apps custom no admin), mantido sem upper pin —
+# se voltar a aparecer um ModuleNotFoundError/AttributeError deste tipo,
+# aplicar o mesmo processo de diagnóstico documentado no CLAUDE.md.
 django-addanother
-django-cms<3.10
-django-admin-rangefilter<0.7
-django-multiselectfield==0.1.12

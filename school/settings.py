@@ -1,16 +1,25 @@
 """
-Default Django settings for the production Django Dance School project template.
+Default Django settings for the HOP IN Dance School project — CMS 5 / Django 5.2.
 
-This file is a starting place for your production deployment of the Dance School Project.
-It references most default settings.  A large number of these settings are also automatically
-specified through included environment variables, and many other settings are configured by
-default in the included file danceschool.default_settings.  So, you may never need to edit this file
-unless you wish to enable/disable optional functionality, or you wish to install additional
-Django apps.  But, anything that is configured elsewhere through one of those methods can 
-also be directly overridden below.
+Reescrito de raiz para o `0.9.0-dev` do django-danceschool (Django 5.2,
+django-cms 5.0.1, djangocms-frontend/Bootstrap 5, djangocms-versioning,
+djangocms-alias). NÃO é uma migração incremental do settings.py antigo
+(CMS 3/Django 3.1) — a doc oficial do 0.9.0-dev está desatualizada (ver
+CLAUDE.md), por isso o INSTALLED_APPS abaixo foi montado a partir de:
+1. install_requires do setup.py do django-danceschool 0.9.0-dev;
+2. leitura direta do código de cada app (cms_apps.py, cms_plugins.py,
+   forms/*.py) para confirmar os nomes reais dos pacotes CMS 5
+   (ex: `djangocms_text`, não `djangocms_text_ckeditor`);
+3. READMEs oficiais de cada pacote django-cms (versioning, alias,
+   frontend, text) em vez da doc do django-danceschool.
 
-As always, be very careful never to commit any sensitive information such as database credentials
-or your Django Secret Key to any location where it could be accessible to unauthorized individuals.
+Itens marcados "A CONFIRMAR" são o melhor palpite fundamentado a partir
+dessa pesquisa, mas só ficam confirmados no primeiro `migrate`/arranque
+real — corrigir aqui conforme os erros que aparecerem (mesmo padrão já
+usado no CLAUDE.md para pins de versão).
+
+Como sempre, nunca commitar credenciais reais (SECRET_KEY, password da
+BD, etc.) — vêm todas de env vars / Docker secrets.
 """
 
 import os
@@ -23,15 +32,15 @@ from logging.handlers import SysLogHandler
 from huey import RedisHuey
 from redis import ConnectionPool
 
-# This line imports a large number of defaults, so that
-# they do not need to be specified here directly.
-# You may always override these defaults below.
-from danceschool.default_settings import *
+# Importa um grande número de defaults (INSTALLED_APPS/MIDDLEWARE NÃO estão
+# entre eles — ver nota no topo deste ficheiro, o pacote deixou de os
+# definir a partir do 0.9.0-dev). Pode sempre ser sobreposto abaixo.
+from danceschool.default_settings import *  # noqa: F401,F403
 
 
 def boolify(s):
     ''' translate environment variables to booleans '''
-    if isinstance(s,bool) or isinstance(s,int):
+    if isinstance(s, bool) or isinstance(s, int):
         return s
     s = s.strip().lower()
     return int(s) if s.isdigit() else s == 'true'
@@ -46,70 +55,48 @@ def get_secret(secret_name):
         return None
 
 
-# This line is required by Django CMS to determine default URLs
-# for pages.
+# Required by Django CMS to determine default URLs for pages.
 SITE_ID = 1
 
-# Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = get_secret('django_secret_key') or environ.get('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = boolify(environ.get('DEBUG', False))
 
-# SECURITY WARNING: ALLOWED_HOSTS must be updated for production
-# to permit public access of the site.  Because *.herokuapp.com
-# is currently allowed, this project is insecure by default.
-# It is STRONGLY recommended that you update this to limit
-# to your own domain before making your site public.
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', environ.get('ALLOWED_HOST') or '']
 
 
 # Application definition
+#
+# Ordem preservada do settings.py antigo onde possível (CMS/dynamic_preferences
+# primeiro, apps custom antes do tema, tema antes do core, contrib do Django
+# por último) — essa ordem importa para a descoberta de plugins/templates.
 
 INSTALLED_APPS = [
-    # The CMS App goes first so that it will find plugins in other installed apps
+    # O CMS vai primeiro para encontrar plugins nas outras apps instaladas.
     'cms',
 
-    # The dynamic preferences app goes second so that it will find and register
-    # project preferences in other installed apps
+    # A dynamic_preferences vai a seguir para encontrar/registar preferências
+    # do projeto definidas noutras apps.
     'dynamic_preferences',
 
-    # ## Typically, if you have a custom app for custom functionality,
-    # ## it will be added here:
-    # '< my_custom_app >',
+    # Apps custom da HOP IN.
     'democontent',
-
     # Overrides de templates/CSS do tema (tem de vir antes do tema para o
-    # Django encontrar aqui primeiro, já que só usamos APP_DIRS e não há
-    # TEMPLATES['DIRS'] configurado). Ver custom/hopintheme/.
+    # Django encontrar aqui primeiro — só usamos APP_DIRS, sem TEMPLATES['DIRS']).
     'hopintheme',
 
-    # The project provides some default theming options, including easy Bootstrap 4
-    # plugins. As additional themes are included in the project, they should be added
-    # here.  Uncomment a theme to enable the project to search for its template
-    # files, CMS plugins, etc.  Also, be sure that the danceschool.themes app is
-    # enabled below.
+    # Tema base do projeto (plugins Bootstrap "clássicos" do próprio
+    # danceschool, distintos do djangocms_frontend abaixo).
     'danceschool.themes.business_frontpage',
-
-    # This is required for customizable themes to work, but it must be
-    # listed *after* and customizable themes are listed so that templates
-    # can be overridden as needed.
     'danceschool.themes',
 
-    # ## This is the core app of the django-danceschool project that
-    # ## is required for all installations:
+    # App core do projeto — obrigatória.
     'danceschool.core',
 
-    # ## These apps provide additional functionality and are optional,
-    # ## but they are enabled by default:
+    # Apps opcionais, ativas por omissão.
     'danceschool.financial',
     'danceschool.private_events',
     'danceschool.discounts',
@@ -123,93 +110,126 @@ INSTALLED_APPS = [
     'danceschool.register',
     'danceschool.merch',
     # 'danceschool.backups',
-
-    # ## Uncomment to add private lesson scheduling functionality:
     # 'danceschool.private_lessons',
 
-    # Note: Payment processor apps are automatically enabled/disabled below.
-    # Except for the "Pay at door" app, which requires no external configuation
-    # tokens or other environment variables to be present.
+    # Apps de pagamento são ativadas condicionalmente mais abaixo, exceto
+    # "pay at door" que não precisa de tokens externos:
     # 'danceschool.payments.payatdoor',
 
-    # These are required for the CMS
+    # Requeridas pelo django-cms.
     'menus',
     'sekizai',
     'treebeard',
 
-    # Django-admin-sortable permits us to drag and drop sort page content items
+    # Drag-and-drop na ordenação de conteúdo no admin.
     'adminsortable2',
 
-    # Django-allauth is used for better authentication options
+    # Autenticação.
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
 
-    # For rich text in Django CMS
-    'ckeditor_filebrowser_filer',
-    'djangocms_text_ckeditor',
+    # Rich text do CMS 5 — substitui djangocms_text_ckeditor (CMS 3).
+    # Confirmado no código de 0.9.0-dev: danceschool/core/forms/email.py
+    # importa `djangocms_text.widgets.TextEditorWidget`, e
+    # setup_permissions.py já lista 'djangocms_text' (não mais
+    # '..._ckeditor'). Editor por omissão é o TipTap, incluído no pacote base.
+    'djangocms_text',
+    # Contrib opcional para inserir imagens do django-filer no editor — é o
+    # equivalente ao antigo 'ckeditor_filebrowser_filer'.
+    'djangocms_text.contrib.filer_image',
 
-    # For picking colors
+    # Seletor de cores (setup.py: django-colorful>=1.3).
     'colorful',
 
-    # This helps to make forms pretty
+    # Forms bonitos, agora em Bootstrap 5 (confirmado no código:
+    # danceschool/core/forms/email.py já usa classes/atributos `data-bs-*`).
     'crispy_forms',
+    'crispy_bootstrap5',
 
-    # For Bootstrap 4 plugins and theme functionality
+    # Plugins CMS "clássicos" ainda usados diretamente pelo core do
+    # danceschool — confirmado em danceschool/themes/cms_plugins.py, que
+    # ainda deriva de djangocms_picture.cms_plugins.PicturePlugin para o
+    # plugin de imagem de splash. djangocms_link é dependência obrigatória
+    # do djangocms_frontend a partir da v2.
     'djangocms_icon',
     'djangocms_link',
     'djangocms_picture',
-    'djangocms_bootstrap4',
-    'djangocms_bootstrap4.contrib.bootstrap4_alerts',
-    'djangocms_bootstrap4.contrib.bootstrap4_badge',
-    'djangocms_bootstrap4.contrib.bootstrap4_card',
-    'djangocms_bootstrap4.contrib.bootstrap4_carousel',
-    'djangocms_bootstrap4.contrib.bootstrap4_collapse',
-    'djangocms_bootstrap4.contrib.bootstrap4_content',
-    'djangocms_bootstrap4.contrib.bootstrap4_grid',
-    'djangocms_bootstrap4.contrib.bootstrap4_jumbotron',
-    'djangocms_bootstrap4.contrib.bootstrap4_link',
-    'djangocms_bootstrap4.contrib.bootstrap4_listgroup',
-    'djangocms_bootstrap4.contrib.bootstrap4_media',
-    'djangocms_bootstrap4.contrib.bootstrap4_picture',
-    'djangocms_bootstrap4.contrib.bootstrap4_tabs',
-    'djangocms_bootstrap4.contrib.bootstrap4_utilities',
 
-    # Autocomplete overrides some admin features so it goes here (above admin)
+    # django CMS Frontend — substitui djangocms_bootstrap4 (Bootstrap 5).
+    # Lista de contrib apps escolhida para dar paridade com os componentes
+    # Bootstrap 4 que já usávamos (alerts/badge/card/carousel/collapse/
+    # content/grid/jumbotron/link/listgroup/media/tabs/utilities). 'image'
+    # é o componente de imagem novo da frontend (distinto de djangocms_picture
+    # acima, que o core do danceschool usa por si só para o splash).
+    'easy_thumbnails',
+    'djangocms_frontend',
+    'djangocms_frontend.contrib.accordion',
+    'djangocms_frontend.contrib.alert',
+    'djangocms_frontend.contrib.badge',
+    'djangocms_frontend.contrib.card',
+    'djangocms_frontend.contrib.carousel',
+    'djangocms_frontend.contrib.collapse',
+    'djangocms_frontend.contrib.content',
+    'djangocms_frontend.contrib.grid',
+    'djangocms_frontend.contrib.image',
+    'djangocms_frontend.contrib.jumbotron',
+    'djangocms_frontend.contrib.link',
+    'djangocms_frontend.contrib.listgroup',
+    'djangocms_frontend.contrib.media',
+    'djangocms_frontend.contrib.tabs',
+    'djangocms_frontend.contrib.utilities',
+
+    # Versionamento de conteúdo (substitui o modelo draft/published do CMS 3)
+    # e Aliases (substitui os static placeholders do CMS 3, ex. rodapé).
+    'djangocms_versioning',
+    'djangocms_alias',
+    'parler',  # dependência obrigatória do djangocms_alias
+
+    # Autocomplete (usado em danceschool/core/forms/email.py, entre outros)
+    # — vai antes do admin, tal como no settings.py antigo.
     'dal',
     'dal_select2',
     'django_addanother',
 
-    # This allows for custom date range filtering of financials, etc.
-    'rangefilter',
+    # Filtro por múltiplos emails num único campo (EmailContactForm).
+    'multi_email_field',
 
-    # Makes Django CMS prettier
+    # Filtros de data/lista no admin. O setup.py do 0.9.0-dev troca o antigo
+    # 'django-admin-rangefilter<0.7' (pin fóssil, ver CLAUDE.md) por
+    # 'django-admin-rangefilter>=0.13.2' (sem upper pin — o bug de
+    # compatibilidade que motivou o pin já não se aplica) e ACRESCENTA
+    # 'django-admin-list-filter-dropdown>=1.0.3'. A CONFIRMAR: o nome exato
+    # da app deste segundo pacote no INSTALLED_APPS
+    # (`django_admin_listfilter_dropdown`, conforme a doc do PyPI) só é
+    # validado no primeiro arranque — se o Django reclamar de app não
+    # encontrada, corrigir aqui.
+    'rangefilter',
+    'django_admin_listfilter_dropdown',
+
+    # Admin mais bonito para o CMS.
     'djangocms_admin_style',
 
-    # This allows for PDF export of views
+    # Export de views para PDF.
     'easy_pdf',
 
-    # Django-filer allows for file and image management
-    'easy_thumbnails',
+    # Gestão de ficheiros/imagens.
     'filer',
 
-    # This permits simple task scheduling
+    # Agendamento de tarefas.
     'huey.contrib.djhuey',
 
-    # Django-polymorphic is used for Event multi-table inheritance
+    # Multi-table inheritance para Event.
     'polymorphic',
 
-    # Django-storages allows use of Amazon S3 or other solutions for
-    # hosting user uploaded files
+    # Amazon S3 ou outro backend de storage, se configurado abaixo.
     'storages',
 
-    # Disable Django's own staticfiles handling in favour of WhiteNoise, for
-    # greater consistency between gunicorn and `./manage.py runserver`. See:
-    # http://whitenoise.evans.io/en/stable/django.html#using-whitenoise-in-development
+    # Substitui o handling de staticfiles do Django pelo WhiteNoise, para
+    # consistência entre gunicorn e `./manage.py runserver`.
     'whitenoise.runserver_nostatic',
 
-    # Finally, the Django contrib apps needed for this project and
-    # its dependencies
+    # Apps do Django e suas dependências.
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -221,9 +241,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    # This middleware is required by Django CMS for intelligent reloading on updates.
+    # Necessário pelo django-cms para recarregar apphooks de forma
+    # inteligente quando mudam (ver danceschool/core/cms_apps.py —
+    # RegistrationApphook).
     'cms.middleware.utils.ApphookReloadMiddleware',
-    # This middleware is used by WhiteNoise for static file handling
+    # Usado pelo WhiteNoise para servir estáticos.
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -233,7 +255,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.locale.LocaleMiddleware',
-    # These pieces of middleware are required by Django CMS
+    # Middlewares exigidos pelo django-cms.
     'cms.middleware.user.CurrentUserMiddleware',
     'cms.middleware.page.CurrentPageMiddleware',
     'cms.middleware.toolbar.ToolbarMiddleware',
@@ -247,7 +269,6 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'APP_DIRS': True,
         'OPTIONS': {
-            # List of callables that know how to import templates from various sources.
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -270,7 +291,6 @@ WSGI_APPLICATION = 'school.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/1.10/ref/settings/#databases
 
 DATABASES = {
     'default': {
@@ -279,26 +299,19 @@ DATABASES = {
     }
 }
 
-# Change 'default' database configuration with $DATABASE_URL or the Docker secret.
 DB_URL = get_secret('postgres_url') or environ.get('DATABASE_URL')
-DATABASES['default'].update(dj_database_url.config(default=DB_URL,conn_max_age=500))
+DATABASES['default'].update(dj_database_url.config(default=DB_URL, conn_max_age=500))
 
-# Password validation
-# https://docs.djangoproject.com/en/1.10/ref/settings/#auth-password-validators
+# Django 5.x recomenda BigAutoField por omissão (DEFAULT_AUTO_FIELD já vem
+# definido como AutoField em danceschool.default_settings — mantido por
+# consistência com as migrações existentes do pacote, não mudar sem correr
+# `makemigrations` para todas as apps).
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 # Logging
@@ -316,14 +329,12 @@ LOGGING = {
         },
     },
     'handlers': {
-        # Send messages to console based on environment logging level
         'console': {
-            'level': environ.get('LOGGING_LEVEL','DEBUG'),
+            'level': environ.get('LOGGING_LEVEL', 'DEBUG'),
             'class': 'logging.StreamHandler',
         },
-        # Send info messages to syslog
-        'syslog':{
-            'level':'INFO',
+        'syslog': {
+            'level': 'INFO',
             'class': 'logging.handlers.SysLogHandler',
             'facility': SysLogHandler.LOG_LOCAL2,
             'address': '/dev/log',
@@ -331,7 +342,6 @@ LOGGING = {
         },
     },
     'loggers': {
-        # This is the "catch all" logger
         '': {
             'handlers': ['console'],
             'level': 'DEBUG',
@@ -345,13 +355,8 @@ LOGGING = {
     }
 }
 
-# Internationalization
-# https://docs.djangoproject.com/en/1.10/topics/i18n/
-
-# Language code for this installation. All choices can be found here:
-# http://www.i18nguy.com/unicode/language-identifiers.html
-# A HOP IN comunica sobretudo em português europeu, com inglês como segunda
-# língua (ver CLAUDE.md), por isso o padrão é 'pt'.
+# Internacionalização — HOP IN comunica sobretudo em português europeu (ver
+# CLAUDE.md), com inglês como segunda língua.
 LANGUAGE_CODE = environ.get('LANGUAGE_CODE', 'pt')
 
 # Sobrepõe o LANGUAGES = [('en', 'English')] herdado de
@@ -361,16 +366,10 @@ LANGUAGES = [
     ('en', 'English'),
 ]
 
-# Traduções do próprio projeto. LOCALE_PATHS tem prioridade sobre os
-# catálogos das apps instaladas, o que nos permite traduzir strings do
-# pacote django-danceschool (que não traz catálogo pt nenhum) sem editar o
-# pacote em site-packages.
+# LOCALE_PATHS tem prioridade sobre os catálogos das apps instaladas — traduz
+# o pacote django-danceschool sem editar site-packages.
 LOCALE_PATHS = [os.path.join(BASE_DIR, 'locale')]
 
-# Configuração de idiomas do django-cms (a chave 1 corresponde ao SITE_ID).
-# Cada idioma faz fallback para o outro: uma página ainda não traduzida
-# mostra o conteúdo do outro idioma em vez de dar 404, o que é importante
-# enquanto a tradução de conteúdo estiver a meio.
 CMS_LANGUAGES = {
     SITE_ID: [
         {
@@ -398,39 +397,33 @@ CMS_LANGUAGES = {
     },
 }
 
-# Local time zone for this installation. Choices can be found here:
-# http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
-TIME_ZONE = environ.get('TIME_ZONE','America/New_York')
+TIME_ZONE = environ.get('TIME_ZONE', 'Europe/Lisbon')
 
 USE_I18N = True
-
 USE_L10N = True
-
 USE_TZ = True
 
-
-# Huey setup (use Redis by default)
+# Huey (Redis)
 pool = ConnectionPool.from_url(environ.get('REDIS_URL'))
 HUEY = RedisHuey('danceschool', connection_pool=pool)
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/1.10/howto/static-files/
-
+# Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(PROJECT_ROOT, 'staticfiles')
-
-# Simplified static file serving.
-# https://warehouse.python.org/project/whitenoise/
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Honor the 'X-Forwarded-Proto' header for request.is_secure()
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Required to ensure that Django CMS admin frames load with Django 3.0+
+# Requerido pelo django-cms para que as frames do admin carreguem.
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-# AWS must be configured in the environment variables.  If it is
-# not configured, then the project will default to local storage.
+# django CMS 5 — flag de compatibilidade nova (não existia no CMS 3/4). A
+# CONFIRMAR o que exatamente ativa: aparece em danceschool.default_settings
+# do 0.9.0-dev sem comentário explicativo; manter True (o valor upstream) até
+# se perceber melhor o efeito, e documentar aqui assim que soubermos.
+CMS_CONFIRM_VERSION4 = True
+
+# AWS, se configurado no ambiente; caso contrário, storage local.
 if (
     'AWS_STORAGE_BUCKET_NAME' in environ and
     'AWS_SECRET_ACCESS_KEY' in environ and
@@ -444,10 +437,8 @@ else:
     MEDIA_ROOT = os.path.join(PROJECT_ROOT, 'media')
     MEDIA_URL = '/media/'
 
-# Payment processor details are loaded here, if they have been added
-# as environment variables
-
-# Paypal
+# Processadores de pagamento — ativados condicionalmente conforme as
+# variáveis de ambiente disponíveis.
 PAYPAL_MODE = environ.get('PAYPAL_MODE', 'sandbox')
 PAYPAL_CLIENT_ID = environ.get('PAYPAL_CLIENT_ID')
 PAYPAL_CLIENT_SECRET = environ.get('PAYPAL_CLIENT_SECRET')
@@ -455,7 +446,6 @@ PAYPAL_CLIENT_SECRET = environ.get('PAYPAL_CLIENT_SECRET')
 if PAYPAL_MODE and PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET:
     INSTALLED_APPS.append('danceschool.payments.paypal')
 
-# Square
 SQUARE_LOCATION_ID = environ.get('SQUARE_LOCATION_ID')
 SQUARE_APPLICATION_ID = environ.get('SQUARE_APPLICATION_ID')
 SQUARE_ACCESS_TOKEN = environ.get('SQUARE_ACCESS_TOKEN')
@@ -463,15 +453,13 @@ SQUARE_ACCESS_TOKEN = environ.get('SQUARE_ACCESS_TOKEN')
 if SQUARE_LOCATION_ID and SQUARE_ACCESS_TOKEN and SQUARE_APPLICATION_ID:
     INSTALLED_APPS.append('danceschool.payments.square')
 
-# Stripe
 STRIPE_PUBLIC_KEY = environ.get('STRIPE_PUBLIC_KEY')
 STRIPE_PRIVATE_KEY = environ.get('STRIPE_PRIVATE_KEY')
 
 if STRIPE_PUBLIC_KEY and STRIPE_PRIVATE_KEY:
     INSTALLED_APPS.append('danceschool.payments.stripe')
 
-# This configures email through dj_email_url by parsing $EMAIL_URL, which is
-# set in env.default. Sendgrid and Gmail both use SMTP.
+# Email via $EMAIL_URL (definido em env.default). Sendgrid e Gmail usam SMTP.
 if 'EMAIL_URL' in environ:
     email_config = dj_email_url.config()
     EMAIL_FILE_PATH = email_config.get('EMAIL_FILE_PATH')
@@ -486,7 +474,14 @@ if 'EMAIL_URL' in environ:
 DEFAULT_FROM_EMAIL = environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 SERVER_EMAIL = environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
-# Use Redis for caching
+# Crispy forms — Bootstrap 5 (setup.py: crispy-bootstrap5). O
+# CRISPY_TEMPLATE_PACK também já vem definido como 'bootstrap5' em
+# danceschool.default_settings; repetido aqui por clareza.
+CRISPY_ALLOWED_TEMPLATE_PACKS = ('bootstrap5',)
+CRISPY_TEMPLATE_PACK = 'bootstrap5'
+CRISPY_FAIL_SILENTLY = True
+
+# Cache/sessões via Redis.
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -500,36 +495,11 @@ CACHES = {
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
 SESSION_CACHE_ALIAS = "default"
 
-# If the danceschool.backups app is enabled, this setting defines the location
-# where backups are saved. Docker users note that this path should be correct
-# *inside* the Docker container, not outside of it. 
-BACKUP_LOCATION = environ.get('BACKUP_LOCATION','/backup')
+BACKUP_LOCATION = environ.get('BACKUP_LOCATION', '/backup')
 
-#: Useful settings if you are running on Heroku
-#: The unique identifier for the application. eg. "9daa2797-e49b-4624-932f-ec3f9688e3da"
-HEROKU_APP_ID = environ.get('HEROKU_APP_ID', None)
-
-#: The application name. eg. "example-app"
-HEROKU_APP_NAME = environ.get('HEROKU_APP_NAME', None)
-
-#: The dyno identifier. eg. "1vac4117-c29f-4312-521e-ba4d8638c1ac"
-HEROKU_DYNO_ID = environ.get('HEROKU_DYNO_ID', None)
-
-#: The identifier for the current release. eg. "v42"
-HEROKU_SLUG_ID = environ.get('HEROKU_SLUG_ID', None)
-
-#: The commit hash for the current release. eg. "2c3a0b24069af49b3de35b8e8c26765c1dba9ff0"
-HEROKU_SLUG_COMMIT = environ.get('HEROKU_SLUG_COMMIT', None)
-
-#: The time and date the release was created. eg. "2015/04/02 18:00:42"
-HEROKU_RELEASE_CREATED_AT = environ.get('HEROKU_RELEASE_CREATED_AT', None)
-
-#: The description of the current release. eg. "Deploy 2c3a0b2"
-HEROKU_RELEASE_DESCRIPTION = environ.get('HEROKU_RELEASE_DESCRIPTION', None)
-
-# Nightly backups (set in environment to enable)
+# Nightly backups (ativar via env var)
 BACKUP_NIGHTLY_ENABLED = environ.get('BACKUP_NIGHTLY_ENABLED', False)
 
-# Mailchimp integration
-MAILCHIMP_API_KEY = environ.get('MAILCHIMP_API_KEY','')
-MAILCHIMP_LIST_ID = environ.get('MAILCHIMP_LIST_ID','')
+# Mailchimp
+MAILCHIMP_API_KEY = environ.get('MAILCHIMP_API_KEY', '')
+MAILCHIMP_LIST_ID = environ.get('MAILCHIMP_LIST_ID', '')

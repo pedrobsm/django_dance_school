@@ -1,14 +1,18 @@
+# Pacotes extra do projeto, além do que o próprio django-danceschool já
+# traz no seu install_requires (setup.py do 0.9.0-dev — instalado a partir
+# do Git no Dockerfile, NÃO deste ficheiro nem do PyPI, que tem a versão
+# fóssil 0.9.3/CMS3). Ver CLAUDE.md, secção "Migração para CMS 5".
+#
+# Removidos face à versão CMS3/Django 3.1 deste ficheiro: paypalrestsdk,
+# peewee, redis, squareconnect, stripe — já vêm como dependências diretas
+# do próprio django-danceschool 0.9.0-dev (setup.py), com nomes/versões
+# atualizados (ex: squareconnect -> squareup). Repeti-los aqui arriscava
+# reintroduzir versões antigas incompatíveis.
 boto3>=1.4.7
 dj-database-url>=0.4.2
 dj-email-url>=0.0.10
-django-danceschool>=0.9.0
-django-redis>=4.10.0
+django-redis>=5.4.0
 django-storages>=1.6.5
 gunicorn>=19.6.0
-paypalrestsdk>=1.12.0
-peewee>=2.10.1
-psycopg2-binary>=2.8.6
-redis>=2.10.6
-squareconnect>=2.20180712.3
-stripe>=1.62.0
-whitenoise>=3.2
+psycopg2-binary>=2.9.9
+whitenoise>=6.7.0

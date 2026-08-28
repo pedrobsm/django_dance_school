@@ -1,30 +1,27 @@
-"""school URL Configuration
+"""school URL Configuration — CMS 5 / Django 5.2
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/1.10/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  url(r'^$', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  url(r'^$', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.conf.urls import url, include
-    2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
+Reescrito a partir do original (CMS 3 / Django 3.1). A única mudança
+estrutural é `django.conf.urls.url` -> `django.urls.re_path`: `url()` foi
+descontinuado no Django 3.1 e **removido** no Django 4.0 — com Django 5.2
+o import antigo (`from django.conf.urls import include, url`) nem sequer
+carrega. `re_path()` aceita a mesma sintaxe de regex, por isso o resto do
+ficheiro não precisou de mudar.
+
+`django.conf.urls.static.static` e `django.conf.urls.i18n` continuam
+válidos em Django 5.2 (não foram afetados pela remoção de `url()`).
 """
 from django.conf import settings
-from django.conf.urls import include, url
 from django.conf.urls.i18n import i18n_patterns
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.urls import include, re_path
 from django.views.generic import RedirectView
 
 urlpatterns = [
     # O browser pede /favicon.ico na raiz por sua conta. Sem esta rota, o
     # pedido cai no i18n_patterns, ganha prefixo de idioma e acaba em
     # /en/favicon.ico/ -> 404 (era a maioria dos 404 nos logs).
-    url(
+    re_path(
         r'^favicon\.ico$',
         RedirectView.as_view(
             url='{0}images/favicon.ico'.format(settings.STATIC_URL),
@@ -38,7 +35,7 @@ urlpatterns = [
     # intermitente (ver custom/hopintheme/templatetags/hopin_i18n.py). Fica
     # disponível na mesma, e de propósito FORA de i18n_patterns: é a vista
     # que *muda* de idioma, não pode estar presa a um.
-    url(r'^i18n/', include('django.conf.urls.i18n')),
+    re_path(r'^i18n/', include('django.conf.urls.i18n')),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
@@ -61,10 +58,10 @@ urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 # convencional seria /sitemap.xml sem prefixo), mas essas URLs são todas
 # resolvidas por reverse() no código, por isso continuam a funcionar.
 urlpatterns += i18n_patterns(
-    url(r'^admin/', admin.site.urls),
+    re_path(r'^admin/', admin.site.urls),
     # Include your own app's URLs first to override default app URLs
-    # url(r'^', include('your_app.urls')),
+    # re_path(r'^', include('your_app.urls')),
     # Now, include default app URLs
-    url(r'^', include('danceschool.urls')),
-    url(r'^', include('cms.urls')),
+    re_path(r'^', include('danceschool.urls')),
+    re_path(r'^', include('cms.urls')),
 )
