@@ -73,7 +73,10 @@ check_postgres_secrets () {
     # container temporário escreve no mesmo volume que o stack real monta
     # depois, e o Postgres recusa arrancar sobre um data directory de outra
     # major version.
-    docker run -d --name danceschool_postgres_temp -e POSTGRES_HOST_AUTH_METHOD=trust -v danceschool_postgres:/var/lib/postgresql/data postgres:18
+    # Volume montado na raiz /var/lib/postgresql, não em .../data — ver
+    # comentário equivalente em docker-compose.yml (postgres:18 mudou o
+    # layout do data directory).
+    docker run -d --name danceschool_postgres_temp -e POSTGRES_HOST_AUTH_METHOD=trust -v danceschool_postgres:/var/lib/postgresql postgres:18
     sleep 3;
 
     # These need to be checked individually first in case some are specified and others are not.

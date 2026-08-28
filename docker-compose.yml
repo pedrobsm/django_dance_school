@@ -86,7 +86,13 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - ./backups/postgresql:/backup
-      - postgres:/var/lib/postgresql/data
+      # postgres:18 mudou o layout do data directory para ser compatível
+      # com pg_ctlcluster (nome de diretório com a major version dentro),
+      # e recusa-se a arrancar se o volume for montado diretamente em
+      # .../data como acontecia com postgres:10.6. A partir da 18, o mount
+      # correto é a raiz /var/lib/postgresql — a imagem cria a
+      # subestrutura sozinha. Ver docker-library/postgres#1259.
+      - postgres:/var/lib/postgresql
     env_file: env.default
     networks:
       danceschool_default:

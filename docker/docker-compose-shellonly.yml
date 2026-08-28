@@ -34,7 +34,8 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - ../backups/postgresql:/backup
-      - postgres:/var/lib/postgresql/data
+      # Ver comentário equivalente em ../docker-compose.yml.
+      - postgres:/var/lib/postgresql
     env_file: ../env.default
     networks:
       danceschool_default:
