@@ -123,8 +123,10 @@ INSTALLED_APPS = [
     # 'danceschool.private_lessons',
 
     # Apps de pagamento são ativadas condicionalmente mais abaixo, exceto
-    # "pay at door" que não precisa de tokens externos:
-    # 'danceschool.payments.payatdoor',
+    # "pay at door" que não precisa de tokens externos — ativada para a
+    # PoC poder validar o fluxo de inscrição ponta-a-ponta (Fase 3) sem
+    # depender de credenciais reais do Stripe/PayPal/Square.
+    'danceschool.payments.payatdoor',
 
     # Requeridas pelo django-cms.
     'menus',
