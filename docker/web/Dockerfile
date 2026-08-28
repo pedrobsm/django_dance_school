@@ -42,6 +42,11 @@ RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") 
 # CLAUDE.md, secção "Migração para CMS 5", para o contexto completo.
 COPY docker/web/patches/0001-migrate_static_placeholders-cms5-import.patch /tmp/local0001.patch
 RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") \
+    && TARGET="$SITE_PACKAGES/danceschool/core/management/commands/migrate_static_placeholders.py" \
+    # Este ficheiro vem do upstream com terminadores CRLF (só este, não os
+    # outros que o PR #187 toca) — normaliza para LF antes de aplicar o
+    # patch (em LF), senão o `patch` recusa por "different line endings".
+    && sed -i 's/\r$//' "$TARGET" \
     && patch -p1 -d "$SITE_PACKAGES" < /tmp/local0001.patch \
     && rm /tmp/local0001.patch
 
