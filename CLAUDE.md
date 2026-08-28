@@ -251,6 +251,23 @@ de aulas (passada/atual/futura) + 1 evento social criados na
     esperado para uma inscrição "pagar à porta". **Cumpre o critério
     "prioridade máxima" da Fase 3 do plano de migração.**
 
+29. **`create_hopin_demo_data` ajustado a pedido do Pedro (2026-08-28)**:
+    - Apaga `Leader`/`Follower` (par redundante criado pelo próprio prompt
+      do `setupschool`) e reutiliza `Lead`/`Follow` (de `create_demo_data.py`)
+      como par canónico; renomeado `Dancarino(a)` → `Solo`; role nova
+      `Switch` (Lindy Hop e Shag passam a ter `[lead, follow, switch]`,
+      não só lead/follow — assumi que "switch" se aplica às danças a par,
+      confirmar com o Pedro se não for a intenção).
+    - Cria uma conta de teste por grupo pré-existente do `setup_permissions`:
+      `Staff`→Board, `Teacher`→Instructor, `Volunteer`→Registration Desk,
+      todas `is_staff=True`, password `hopintest`.
+    - A parte de páginas CMS (`_create_cms_pages`) continua a usar API do
+      CMS3 (`Page.placeholders`, que **nem existe** no `Page` do CMS5) —
+      agora protegida num `try/except` para não impedir a parte de dados de
+      completar; a reescrita fica para a Fase 4, como já estava previsto.
+      Confirmado o erro exato: `Cannot resolve keyword 'publisher_is_draft'
+      into field`.
+
 ## Estado da infraestrutura
 
 - **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC).
