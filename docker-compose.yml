@@ -72,6 +72,18 @@ services:
     hostname: postgres
     deploy:
       replicas: 1
+    environment:
+      # A imagem oficial recusa-se a arrancar sem isto ou POSTGRES_PASSWORD
+      # (postgres:10.6, usado até 2026-08-28, tinha esse comportamento
+      # implícito — a imagem oficial endureceu isto entretanto). O design
+      # deste projeto já assumia isto: o superuser 'postgres' só é acedido
+      # localmente, via socket Unix, pelo setup_stack.sh (que cria depois
+      # um utilizador com password real, guardada no secret postgres_url,
+      # para a app usar). "trust" alarga isso também a ligações TCP, mas
+      # postgres:5432 nunca é publicado fora da rede overlay
+      # danceschool_default — mesmo risco implícito que já existia, agora
+      # só explícito.
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - ./backups/postgresql:/backup
       - postgres:/var/lib/postgresql/data

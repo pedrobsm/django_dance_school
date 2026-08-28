@@ -29,6 +29,9 @@ services:
     hostname: postgres
     deploy:
       replicas: 1
+    environment:
+      # Ver comentário equivalente em ../docker-compose.yml.
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - ../backups/postgresql:/backup
       - postgres:/var/lib/postgresql/data
