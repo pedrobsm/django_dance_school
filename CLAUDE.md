@@ -197,12 +197,51 @@ escondidas:
     `docker service update --force danceschool_letsencrypt-companion` —
     emite um certificado genuinamente novo e consistente.
 
-**Ainda por fazer nesta Fase 3**: testar o fluxo de inscrição ponta-a-ponta
-(prioridade máxima do plano) — precisa de pelo menos uma Series/Event para
-inscrever, o que por sua vez precisa do `custom/democontent` (Fase 4) para
-gerar dados de teste. Correr os testes automatizados do projeto e confirmar/
-não a regressão conhecida do `regOpenSeries` (PR #173) fica também por
-fazer.
+**`custom/democontent` → `create_demo_data` portou sem alterações** (2026-08-28,
+confirma a expectativa do plano: "deve portar quase sem mexer") — 3 séries
+de aulas (passada/atual/futura) + 1 evento social criados na
+`vm-hopin-cms5poc` sem nenhum erro.
+
+27. **Fluxo de inscrição público partido — página `/en/register/` carrega
+    (200, nav+carrinho renderizam bem) mas a zona de listagem de
+    aulas/eventos fica completamente vazia**, mesmo com Series/Events
+    reais na BD. Investigação (2026-08-28):
+    - O alias `public_register_content` existe, está **`published`**
+      (confirmado — não é o bug da armadilha 24), e tem os 4 plugins
+      esperados (`PublicRegisterNavPlugin` + 3×`PublicRegisterEventPlugin`).
+    - Chamar `PublicRegisterEventPluginModel.getEvents(initial=Event.objects.all())`
+      diretamente no shell **devolve o evento certo** — os dados e a lógica
+      de query em si funcionam.
+    - Não é cache de página (armadilha 13): testado com query string
+      aleatória, sem `Cache-Control` na resposta desta view.
+    - Não é `registration__registrationEnabled` a redirecionar para
+      offline: resposta é `200` direto, sem `Location`, sem texto de
+      "offline"/"disabled".
+    - **O HTML real mostra a `<div>` onde `{% static_alias
+      'public_register_content' site %}` deveria renderizar os plugins
+      genuinamente vazia** — o próprio tag do `djangocms_alias` não está a
+      produzir output nenhum nesta view, apesar do alias existir e estar
+      publicado. `PublicRegisterView` é uma `TemplateView`/`FormView`
+      Django normal (não passa pelo pipeline de páginas do CMS), o que pode
+      interagir mal com o tag `static_alias` de alguma forma ainda não
+      identificada — `site` está disponível no contexto via
+      `danceschool.core.context_processors.site`, por isso não parece ser
+      simplesmente uma variável em falta.
+    - **Correspondência forte com a regressão já avisada no PR #187**:
+      "remoção da chave de contexto `regOpenSeries` (PR #173)... 2 testes
+      do `payatdoor` marcados `@expectedFailure`, fora do âmbito do PR" —
+      não confirmámos a causa raiz exata (não encontrámos `regOpenSeries`
+      em lado nenhum do código atual, sugerindo que já foi removida/
+      renomeada e o problema agora manifesta-se de outra forma), mas o
+      sintoma bate certo: fluxo de registo público que deixou de listar
+      eventos numa altura próxima da introdução do sistema de Aliases.
+    - **Não convém investir mais tempo a isto sem orientação** — é
+      claramente uma regressão pré-existente do `0.9.0-dev`
+      (não introduzida pelas nossas alterações), tal como o próprio PR #187
+      já assinalava. Reportado ao Pedro em 2026-08-28 para decidir como
+      avançar (testar via o fluxo de registo à porta/staff como
+      alternativa, investigar mais a fundo, ou aceitar como limitação
+      conhecida do 0.9.0-dev e seguir para outros critérios de avaliação).
 
 ## Estado da infraestrutura
 
