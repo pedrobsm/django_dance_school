@@ -65,6 +65,17 @@ RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") 
     && grep -q 'page = create_page(language=language, \*\*create_page_kwargs)' "$TARGET" \
     && sed -i 's/page = create_page(language=language, \*\*create_page_kwargs)/page = create_page(language=language, created_by=user, **create_page_kwargs)/' "$TARGET"
 
+# Patch local #3 (nosso, não do PR #187): a Version criada por
+# create_versioned_page() ficava sempre em draft — ver
+# docker/web/patches/fix_publish_version.py para o diagnóstico completo
+# (o manager do PageContent já cria uma Version DRAFT sozinho, por isso o
+# get_or_create() do PR #187 nunca aplica o state=PUBLISHED pretendido).
+# Confirmado na vm-hopin-cms5poc em 2026-08-28: todas as páginas ficavam
+# invisíveis para visitantes anónimos, `/pt/` redirecionava para
+# /pt/admin/login/. Ver CLAUDE.md.
+COPY docker/web/patches/fix_publish_version.py /tmp/fix_publish_version.py
+RUN python3 /tmp/fix_publish_version.py && rm /tmp/fix_publish_version.py
+
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r requirements_custom.txt
 
