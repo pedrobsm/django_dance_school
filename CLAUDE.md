@@ -235,6 +235,22 @@ de aulas (passada/atual/futura) + 1 evento social criados na
     se os testes automatizados do payatdoor (que correm em inglês, por
     omissão) revelarem mesmo uma falha distinta desta.
 
+28. **Inscrição ponta-a-ponta confirmada a funcionar** (2026-08-28, via
+    Claude Browser, simulando um utilizador não-staff): ativei
+    `danceschool.payments.payatdoor` (não precisa de credenciais externas,
+    e o `setup_payatdoor` já vem corrigido pelo PR #187) — sem nenhum
+    processador de pagamento ativo, o passo final de inscrição não tinha
+    nenhum botão para submeter, o que é esperado, não um bug. Percurso
+    completo testado: `/pt/register/` → escolher "Lead" na série Blues →
+    carrinho atualiza (€40) → "Passo 2: os teus dados" (nome/email/aceitar
+    condições) → resumo ("Hi Ana!", €40 total) → marcar "I will pay at the
+    door" → Submeter → redireciona para a Home. Confirmado diretamente na
+    BD: `Customer` criado, `Registration` com `final=True`,
+    `EventRegistration` ligado ao evento e função corretos, `Invoice` com
+    `status=U` (por pagar) e `outstandingBalance=40.0` — exatamente o
+    esperado para uma inscrição "pagar à porta". **Cumpre o critério
+    "prioridade máxima" da Fase 3 do plano de migração.**
+
 ## Estado da infraestrutura
 
 - **Plataforma alvo: Azure** (créditos disponíveis, limitado a 80€/mês para esta PoC).
