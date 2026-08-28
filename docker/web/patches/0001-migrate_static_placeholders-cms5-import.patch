@@ -1,9 +1,9 @@
 --- a/danceschool/core/management/commands/migrate_static_placeholders.py
 +++ b/danceschool/core/management/commands/migrate_static_placeholders.py
-@@ -9,7 +9,17 @@
+@@ -9,7 +9,19 @@
  from django.contrib.contenttypes.models import ContentType
  from django.core.management.base import BaseCommand
-
+ 
 -from cms.models import CMSPlugin, Placeholder, StaticPlaceholder
 +try:
 +    from cms.models import CMSPlugin, Placeholder, StaticPlaceholder
@@ -18,6 +18,6 @@
 +    # "Migração para CMS 5" section, for the full story.
 +    from cms.models import CMSPlugin, Placeholder
 +    StaticPlaceholder = None
-
+ 
  from djangocms_alias.models import Category, Alias, AliasContent
  from djangocms_alias.constants import DEFAULT_STATIC_ALIAS_CATEGORY_NAME
