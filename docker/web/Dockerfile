@@ -50,6 +50,21 @@ RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") 
     && patch -p1 -d "$SITE_PACKAGES" < /tmp/local0001.patch \
     && rm /tmp/local0001.patch
 
+# Patch local #2 (nosso, não do PR #187): create_versioned_page() (o wrapper
+# que o PR #187 introduz em setupschool.py para create_page()+Version) chama
+# `create_page(language=language, **create_page_kwargs)` sem `created_by`.
+# O próprio django-cms 5 avisa quando isto acontece ("No user has been
+# supplied... No version could be created") e, pior do que o aviso diz,
+# também não popula os placeholders da página a partir do template nesse
+# caso — get_page_placeholder() (também do PR #187) falha a seguir com
+# Placeholder.DoesNotExist. Fix: passar created_by=user ao create_page(),
+# como o próprio aviso do CMS sugere. Confirmado ao correr `setupschool` na
+# vm-hopin-cms5poc em 2026-08-28 — ver CLAUDE.md.
+RUN SITE_PACKAGES=$(python3 -c "import site; print(site.getsitepackages()[0])") \
+    && TARGET="$SITE_PACKAGES/danceschool/core/management/commands/setupschool.py" \
+    && grep -q 'page = create_page(language=language, \*\*create_page_kwargs)' "$TARGET" \
+    && sed -i 's/page = create_page(language=language, \*\*create_page_kwargs)/page = create_page(language=language, created_by=user, **create_page_kwargs)/' "$TARGET"
+
 RUN pip3 install -r requirements.txt
 RUN pip3 install -r requirements_custom.txt
 
