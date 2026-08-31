@@ -639,9 +639,21 @@ class Command(BaseCommand):
                 invoice.collectedByUser = admin_user
             invoice.save()
 
-            invoice_item = InvoiceItem.objects.create(
+            # InvoiceItem.objects.create() is avoided here: on this install,
+            # saving an InvoiceItem outside of the normal request/response
+            # cycle triggers a post_save receiver chain (danceschool.core's
+            # cache-invalidation / modified-date signals, and, when
+            # danceschool.financial is installed, its RevenueItem creation)
+            # that silently rolls back the whole insert -- no exception is
+            # raised, but the row is simply not there afterwards (reproduced
+            # directly in the shell; root cause not fully isolated, but
+            # consistently and only affects this specific model's .save()).
+            # bulk_create() bypasses .save() and all signals entirely, which
+            # sidesteps the issue (and is fine here: RevenueItem bookkeeping
+            # from the optional financial app is out of scope for demo data).
+            invoice_item = InvoiceItem.objects.bulk_create([InvoiceItem(
                 invoice=invoice, description=str(event), grossTotal=price, total=price,
-            )
+            )])[0]
             er = EventRegistration.objects.create(
                 registration=registration, event=event, customer=customer,
                 role=role, invoiceItem=invoice_item,
